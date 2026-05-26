@@ -33,34 +33,106 @@ const COMPLETED_BRIEFS = [
 ];
 const MONTHLY_GOAL = 3;
 
+// ─── Avatar ──────────────────────────────────────────────────────────────────
+const AVATAR_PALETTE = [
+  { bg: '#EEF2FF', color: '#3730A3' },
+  { bg: '#E0E7FF', color: '#4338CA' },
+  { bg: '#C7D2FE', color: '#4338CA' },
+  { bg: '#DDD6FE', color: '#5B21B6' },
+  { bg: '#EDE9FE', color: '#6D28D9' },
+];
+
+function getAvatarStyle(nickname: string): { bg: string; color: string } {
+  if (!nickname) return { bg: 'linear-gradient(135deg,#FCE7F3,#DDD6FE)', color: '#3730A3' };
+  let hash = 0;
+  for (let i = 0; i < nickname.length; i++) {
+    hash = nickname.charCodeAt(i) + ((hash << 5) - hash);
+    hash = hash | 0;
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
 // ─── Header ─────────────────────────────────────────────────────────────────
-const Header = ({ empty, onToggle }: { empty: boolean; onToggle: () => void }) => (
-  <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: 'var(--shadow-indigo)' }}>
-        <Icon.Spark2 style={{ width: 16, height: 16 }} />
+const Header = ({ empty, onToggle, nickname }: {
+  empty: boolean;
+  onToggle: () => void;
+  nickname?: string | null;
+}) => {
+  const [showMenu, setShowMenu] = React.useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!showMenu) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setShowMenu(false);
+    };
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowMenu(false); };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [showMenu]);
+
+  const avatarStyle = getAvatarStyle(nickname ?? '');
+  const initial = nickname ? nickname.charAt(0) : '?';
+
+  return (
+    <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: 'var(--shadow-indigo)' }}>
+          <Icon.Spark2 style={{ width: 16, height: 16 }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>BriefLab</div>
+          <div style={{ fontSize: 11, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>AI 브리프 연습 플랫폼</div>
+        </div>
       </div>
-      <div>
-        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>BriefLab</div>
-        <div style={{ fontSize: 11, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>AI 브리프 연습 플랫폼</div>
+      <nav style={{ display: 'flex', gap: 4, fontSize: 13.5, fontWeight: 600 }}>
+        {(['대시보드', '브리프', '포트폴리오', '커뮤니티'] as const).map((t, i) => (
+          <a key={t} href={i === 1 ? '/brief' : '#'} style={{ padding: '8px 14px', borderRadius: 8, textDecoration: 'none', background: i === 0 ? 'var(--indigo-50)' : 'transparent', color: i === 0 ? 'var(--indigo-700)' : 'var(--ink-600)', whiteSpace: 'nowrap' }}>{t}</a>
+        ))}
+      </nav>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={onToggle} style={{ background: empty ? 'var(--indigo-50)' : 'var(--ink-100)', border: empty ? '1px solid var(--indigo-200)' : '1px solid var(--ink-200)', color: empty ? 'var(--indigo-700)' : 'var(--ink-600)', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+          {empty ? '📭 빈 상태' : '📊 데이터 있음'}
+        </button>
+        <button style={{ background: 'transparent', border: 'none', color: 'var(--ink-600)', width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <Icon.Bell style={{ width: 18, height: 18 }} />
+        </button>
+        <div ref={menuRef} style={{ position: 'relative' }}>
+          <button
+            onClick={() => setShowMenu(v => !v)}
+            aria-label="프로필 메뉴"
+            style={{ width: 32, height: 32, borderRadius: 999, background: avatarStyle.bg, color: avatarStyle.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-xs)', border: '1.5px solid rgba(255,255,255,0.8)', cursor: 'pointer', outline: 'none' }}
+          >
+            {initial}
+          </button>
+          {showMenu && (
+            <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 224, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(17,24,39,0.14), 0 0 0 1px rgba(17,24,39,0.06)', overflow: 'hidden', zIndex: 100 }}>
+              <div style={{ padding: '6px 0' }}>
+                <Link
+                  href="/profile"
+                  onClick={() => setShowMenu(false)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', fontSize: 13.5, fontWeight: 500, color: 'var(--ink-700)', textDecoration: 'none', transition: 'background 120ms' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--ink-50)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <svg viewBox="0 0 20 20" style={{ width: 16, height: 16, flexShrink: 0 }} fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <circle cx="10" cy="7" r="3" />
+                    <path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" strokeLinecap="round" />
+                  </svg>
+                  프로필 설정
+                </Link>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-    <nav style={{ display: 'flex', gap: 4, fontSize: 13.5, fontWeight: 600 }}>
-      {(['대시보드', '브리프', '포트폴리오', '커뮤니티'] as const).map((t, i) => (
-        <a key={t} href={i === 1 ? '/brief' : '#'} style={{ padding: '8px 14px', borderRadius: 8, textDecoration: 'none', background: i === 0 ? 'var(--indigo-50)' : 'transparent', color: i === 0 ? 'var(--indigo-700)' : 'var(--ink-600)', whiteSpace: 'nowrap' }}>{t}</a>
-      ))}
-    </nav>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <button onClick={onToggle} style={{ background: empty ? 'var(--indigo-50)' : 'var(--ink-100)', border: empty ? '1px solid var(--indigo-200)' : '1px solid var(--ink-200)', color: empty ? 'var(--indigo-700)' : 'var(--ink-600)', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-        {empty ? '📭 빈 상태' : '📊 데이터 있음'}
-      </button>
-      <button style={{ background: 'transparent', border: 'none', color: 'var(--ink-600)', width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-        <Icon.Bell style={{ width: 18, height: 18 }} />
-      </button>
-      <div style={{ width: 32, height: 32, borderRadius: 999, background: 'linear-gradient(135deg,#FCE7F3,#DDD6FE)', color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-xs)', border: '1.5px solid var(--white)' }}>민</div>
-    </div>
-  </header>
-);
+    </header>
+  );
+};
 
 // ─── Greeting panel ──────────────────────────────────────────────────────────
 const Stat = ({ icon, label, value }: { icon: string; label: string; value: string }) => (
@@ -71,14 +143,14 @@ const Stat = ({ icon, label, value }: { icon: string; label: string; value: stri
   </div>
 );
 
-const GreetingPanel = ({ empty }: { empty: boolean }) => {
+const GreetingPanel = ({ empty, nickname }: { empty: boolean; nickname?: string | null }) => {
   const stats = empty
     ? { total: '0개', avgScore: '-', streak: '0일', monthlyDone: 0 }
     : { total: '14개', avgScore: '4.4', streak: '6일', monthlyDone: 2 };
   const pct = Math.min(100, (stats.monthlyDone / MONTHLY_GOAL) * 100);
   const hour = new Date().getHours();
   const greeting = empty ? '환영해요' : hour < 12 ? '좋은 아침이에요' : hour < 18 ? '오늘도 화이팅이에요' : '늦은 시간까지 수고하세요';
-  const userName = empty ? '새로운 디자이너' : '김민지';
+  const userName = nickname ?? '새로운 디자이너';
 
   return (
     <div style={{ background: 'linear-gradient(135deg,var(--indigo-700) 0%,var(--indigo-900) 100%)', borderRadius: 'var(--radius-lg)', padding: '28px 32px', color: '#fff', position: 'relative', overflow: 'hidden', boxShadow: 'var(--shadow-md)' }}>
