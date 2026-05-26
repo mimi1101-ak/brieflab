@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ensureSession } from '@/lib/supabase/middleware'
 
-// 인증 비활성화 — 모든 요청을 그대로 통과
-export async function proxy(_request: NextRequest) {
-  return NextResponse.next()
+// /auth/* 경로는 코드 교환 흐름 보호를 위해 익명 로그인 없이 통과
+// 그 외 모든 경로: 세션이 없으면 익명 세션을 자동 발급
+export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith('/auth/')) {
+    return NextResponse.next()
+  }
+  return ensureSession(request)
 }
 
 export const config = {
