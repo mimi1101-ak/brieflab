@@ -2,6 +2,8 @@
 import React from 'react';
 import Link from 'next/link';
 import * as Icon from '@/components/ui/Icon';
+import { getActiveProjects } from '@/lib/supabase/projects';
+import type { ProjectRow } from '@/types/database';
 
 const PROCESS_STEPS = [
   { id: 'receive', label: '브리프 수령', short: '수령' },
@@ -19,11 +21,34 @@ const FIELD_META: Record<string, { label: string; icon: React.ComponentType<Reac
 };
 const DIFF: Record<string, string> = { beginner: '입문', easy: '초급', medium: '중급', hard: '고급' };
 
-const ACTIVE_BRIEFS = [
-  { id: 1, title: '그린라이프 브랜드 리뉴얼 프로젝트', field: 'brand', difficulty: 'medium', stepIdx: 2, deadline: '2026-05-19', daysLeft: 14, client: '(주)그린라이프' },
-  { id: 2, title: '신제품 비건 스킨케어 상세페이지', field: 'detail', difficulty: 'easy', stepIdx: 1, deadline: '2026-05-12', daysLeft: 7, client: '카페 모도리' },
-  { id: 3, title: '식품 스타트업 랜딩페이지 제작', field: 'web', difficulty: 'hard', stepIdx: 3, deadline: '2026-05-26', daysLeft: 21, client: '(주)블룸닷' },
-];
+interface ActiveCardData {
+  id: string;
+  title: string;
+  field: string;
+  difficulty: string;
+  stepIdx: number;
+  deadline: string;
+  daysLeft: number;
+  client: string;
+}
+
+function toCardData(p: ProjectRow): ActiveCardData {
+  const content = p.brief_content as Record<string, unknown> | null;
+  const persona = content?.persona as Record<string, string> | undefined;
+  const daysLeft = p.deadline
+    ? Math.ceil((new Date(p.deadline).getTime() - Date.now()) / 86_400_000)
+    : 0;
+  return {
+    id: p.id,
+    title: p.title,
+    field: p.field,
+    difficulty: p.difficulty,
+    stepIdx: p.step_index,
+    deadline: p.deadline ?? '',
+    daysLeft,
+    client: persona?.company ?? '클라이언트',
+  };
+}
 const COMPLETED_BRIEFS = [
   { id: 11, title: '카페 메뉴판 리디자인', field: 'brand', difficulty: 'beginner', completedAt: '2026-04-28', score: 4.5 },
   { id: 12, title: '뷰티 브랜드 인스타 광고 페이지', field: 'detail', difficulty: 'easy', completedAt: '2026-04-20', score: 4.2 },
@@ -208,12 +233,12 @@ const StepBar = ({ activeIdx }: { activeIdx: number }) => (
 );
 
 // ─── Active brief card ───────────────────────────────────────────────────────
-const ActiveCard = ({ brief }: { brief: typeof ACTIVE_BRIEFS[0] }) => {
-  const meta = FIELD_META[brief.field];
+const ActiveCard = ({ brief }: { brief: ActiveCardData }) => {
+  const meta = FIELD_META[brief.field] ?? FIELD_META.web;
   const FieldIcon = meta.icon;
   const dueSoon = brief.daysLeft <= 7;
   return (
-    <Link href="/brief" style={{ textDecoration: 'none', color: 'inherit' }}>
+    <Link href={`/project/${brief.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
       <div style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: 22, boxShadow: 'var(--shadow-xs)', display: 'flex', flexDirection: 'column', gap: 16, transition: 'all 160ms ease', cursor: 'pointer' }}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor='var(--indigo-300)'; e.currentTarget.style.boxShadow='var(--shadow-md)'; e.currentTarget.style.transform='translateY(-2px)'; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor='var(--ink-200)'; e.currentTarget.style.boxShadow='var(--shadow-xs)'; e.currentTarget.style.transform='translateY(0)'; }}
@@ -359,11 +384,21 @@ const SectionHeader = ({ title, subtitle, count, action }: { title: string; subt
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export const Dashboard = () => {
   const [empty, setEmpty] = React.useState(false);
-  const active = empty ? [] : ACTIVE_BRIEFS;
+  // null = 로딩 중, [] = 데이터 없음, [...] = 실제 데이터
+  const [dbActive, setDbActive] = React.useState<ActiveCardData[] | null>(null);
+
+  React.useEffect(() => {
+    getActiveProjects()
+      .then((rows) => setDbActive(rows.map(toCardData)))
+      .catch(() => setDbActive([]));
+  }, []);
+
+  const active = empty ? [] : (dbActive ?? []);
   const completed = empty ? [] : COMPLETED_BRIEFS;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ink-50)' }}>
+      <style>{`@keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }`}</style>
       <Header empty={empty} onToggle={() => setEmpty((e) => !e)} />
       <main style={{ flex: 1, maxWidth: 1240, width: '100%', margin: '0 auto', padding: '32px 36px 120px', display: 'flex', flexDirection: 'column', gap: 36 }}>
         <GreetingPanel empty={empty} />
@@ -378,7 +413,13 @@ export const Dashboard = () => {
               </button>
             ) : undefined}
           />
-          {active.length > 0 ? (
+          {dbActive === null && !empty ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: 16 }}>
+              {[1, 2].map((i) => (
+                <div key={i} style={{ height: 240, borderRadius: 'var(--radius-lg)', background: 'linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)', backgroundSize: '800px 100%', animation: 'shimmer 1.4s ease infinite' }} />
+              ))}
+            </div>
+          ) : active.length > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: 16 }}>
               {active.map((b) => <ActiveCard key={b.id} brief={b} />)}
             </div>

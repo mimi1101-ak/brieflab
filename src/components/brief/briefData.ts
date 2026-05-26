@@ -13,13 +13,26 @@ const PERSONAS: Record<string, { company: string; name: string; title: string; e
 export const buildBrief = (form: BriefForm, lookup: Lookup): BriefData => {
   const persona = PERSONAS[form.client || ''] || PERSONAS.default;
 
-  const projectByField: Record<string, { name: string; purpose: string }> = {
-    detail: { name: '신제품 상세페이지 제작', purpose: '자사몰 및 입점 채널(네이버 스마트스토어, 쿠팡)에서 사용할 신제품 상세페이지를 새로 제작하고자 합니다.' },
-    web:    { name: '브랜드 웹사이트 리뉴얼', purpose: '기존 웹사이트가 모바일 대응이 미흡하고 정보 구조가 노후화되어 전반적인 리뉴얼이 필요합니다.' },
-    brand:  { name: '브랜드 아이덴티티 리뉴얼', purpose: '창립 5주년을 맞아 브랜드 아이덴티티를 정비하고, 일관된 비주얼 시스템을 갖추고자 합니다.' },
-    app:    { name: '모바일 앱 UI 디자인', purpose: '신규 출시 예정인 모바일 앱의 핵심 화면 UI를 디자인하여 베타 테스트를 준비하고자 합니다.' },
+  const projectVariants: Record<string, { name: string; purpose: string }[]> = {
+    detail: [
+      { name: '신제품 상세페이지 제작', purpose: '자사몰 및 입점 채널(네이버 스마트스토어, 쿠팡)에서 사용할 신제품 상세페이지를 새로 제작하고자 합니다.' },
+      { name: '베스트셀러 리뉴얼 상세페이지', purpose: '기존 베스트셀러 상품의 상세페이지가 노후화되어 전환율 개선을 위한 리뉴얼이 필요합니다.' },
+    ],
+    web: [
+      { name: '브랜드 웹사이트 리뉴얼', purpose: '기존 웹사이트가 모바일 대응이 미흡하고 정보 구조가 노후화되어 전반적인 리뉴얼이 필요합니다.' },
+      { name: '신규 랜딩페이지 제작', purpose: '신제품 론칭에 맞춰 전환율에 최적화된 랜딩페이지를 새로 제작하고자 합니다.' },
+    ],
+    brand: [
+      { name: '브랜드 아이덴티티 리뉴얼', purpose: '창립 5주년을 맞아 브랜드 아이덴티티를 정비하고, 일관된 비주얼 시스템을 갖추고자 합니다.' },
+      { name: '서브 브랜드 아이덴티티 구축', purpose: '신규 서브 브랜드 론칭을 위한 로고·컬러 시스템·가이드라인 전반을 구축하고자 합니다.' },
+    ],
+    app: [
+      { name: '모바일 앱 UI 디자인', purpose: '신규 출시 예정인 모바일 앱의 핵심 화면 UI를 디자인하여 베타 테스트를 준비하고자 합니다.' },
+      { name: '앱 온보딩 플로우 재설계', purpose: '기존 앱의 온보딩 이탈률이 높아 사용자 경험 중심으로 전체 플로우를 재설계하려고 합니다.' },
+    ],
   };
-  const project = projectByField[form.field || ''] || projectByField.web;
+  const variants = projectVariants[form.field || ''] || projectVariants.web;
+  const project = variants[Math.floor(Math.random() * variants.length)];
 
   const durationToDates: Record<string, { kickoff: string; mid: string; final: string }> = {
     w1: { kickoff: '2026-05-12', mid: '2026-05-15', final: '2026-05-19' },

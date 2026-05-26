@@ -11,6 +11,7 @@ import { buildBrief } from '@/components/brief/briefData';
 import { BriefForm, Lookup } from '@/components/brief/types';
 import { useBriefStore } from '@/stores/briefStore';
 import { buildEmailBody } from '@/lib/buildEmailBody';
+import { insertDraftProject } from '@/lib/supabase/projects';
 
 const FIELD_OPTIONS = [
   { id: 'detail', label: '상세페이지 제작', sub: '쇼핑몰·상품 페이지', icon: Icon.Detail },
@@ -89,6 +90,7 @@ export default function BriefNewClient({ preferredField }: BriefNewClientProps) 
     avoid:      '',
   });
   const [generating, setGenerating] = React.useState(false);
+  const [genError, setGenError] = React.useState<string | null>(null);
 
   const update = <K extends keyof BriefForm>(key: K, value: BriefForm[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
@@ -108,15 +110,23 @@ export default function BriefNewClient({ preferredField }: BriefNewClientProps) 
     styles:     form.styles.map((id) => LOOKUP.styles[id]).join(', ') || null,
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!canSubmit || generating) return;
     setGenerating(true);
-    setTimeout(() => {
+    setGenError(null);
+    // 1초 지연 → AI 생성 체감
+    await new Promise((r) => setTimeout(r, 1000));
+    try {
       const brief     = buildBrief(form, LOOKUP);
       const emailBody = buildEmailBody(brief);
-      setPreviewData(form, brief, emailBody);
-      router.push('/brief/preview');
-    }, 1400);
+      const projectId = await insertDraftProject(form, brief, emailBody);
+      setPreviewData(form, brief, emailBody, projectId);
+      router.push(`/brief/preview?id=${projectId}`);
+    } catch (err) {
+      console.error('[BriefLab] 브리프 저장 실패:', err);
+      setGenError('브리프 저장에 실패했어요. 다시 시도해주세요.');
+      setGenerating(false);
+    }
   };
 
   return (
@@ -198,8 +208,10 @@ export default function BriefNewClient({ preferredField }: BriefNewClientProps) 
       </main>
 
       <div style={{ position: 'sticky', bottom: 0, left: 0, right: 0, background: 'rgba(255,255,255,0.92)', backdropFilter: 'saturate(180%) blur(8px)', borderTop: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, color: canSubmit ? 'var(--ink-700)' : 'var(--ink-500)' }}>
-          {canSubmit ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 500, color: genError ? 'var(--danger)' : canSubmit ? 'var(--ink-700)' : 'var(--ink-500)' }}>
+          {genError ? (
+            <><Icon.Info style={{ width: 16, height: 16 }} />{genError}</>
+          ) : canSubmit ? (
             <><div style={{ width: 18, height: 18, borderRadius: 999, background: 'var(--success)', color: 'var(--white)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon.Check style={{ width: 11, height: 11 }} /></div>모든 필수 항목이 선택되었습니다</>
           ) : (
             <><Icon.Info style={{ width: 16, height: 16, color: 'var(--ink-400)' }} />필수 항목 <b style={{ color: 'var(--ink-900)' }}>{requiredFilled}/{requiredCount}</b> 선택됨 — 나머지를 채워주세요</>
