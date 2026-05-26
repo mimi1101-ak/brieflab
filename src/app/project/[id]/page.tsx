@@ -11,16 +11,19 @@ export default async function ProjectPage({
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink-50)', display: 'flex', flexDirection: 'column' }}>
+      <style>{`.logo-link:hover { opacity: 0.75; }`}</style>
       <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-          <svg viewBox="0 0 20 20" style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="1.8">
-            <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5Z" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>BriefLab</div>
-          <div style={{ fontSize: 11, color: 'var(--ink-500)' }}>AI 브리프 연습 플랫폼</div>
-        </div>
+        <Link href="/dashboard" className="logo-link" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', transition: 'opacity 150ms ease' }}>
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+            <svg viewBox="0 0 20 20" style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="1.8">
+              <path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5Z" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>BriefLab</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-500)' }}>AI 브리프 연습 플랫폼</div>
+          </div>
+        </Link>
       </header>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', gap: 24 }}>
@@ -43,7 +46,7 @@ export default async function ProjectPage({
           </p>
         </div>
 
-        <Link href="/" style={{ textDecoration: 'none' }}>
+        <Link href="/dashboard" style={{ textDecoration: 'none' }}>
           <button style={{ background: 'var(--indigo-600)', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, padding: '12px 22px', borderRadius: 10, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
             <svg viewBox="0 0 20 20" style={{ width: 15, height: 15 }} fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M10 17l-7-7 7-7M17 10H3" strokeLinecap="round" strokeLinejoin="round" />

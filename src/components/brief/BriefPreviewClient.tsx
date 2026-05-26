@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useBriefStore } from '@/stores/briefStore';
 import { buildBrief } from '@/components/brief/briefData';
@@ -161,7 +162,7 @@ export default function BriefPreviewClient({ projectId }: Props) {
     try {
       await acceptProject(projectId);
       clear();
-      router.push('/');
+      router.push('/dashboard');
     } catch {
       showError('수락에 실패했어요. 다시 시도해주세요.');
       setAction(null);
@@ -238,7 +239,7 @@ export default function BriefPreviewClient({ projectId }: Props) {
 
       {/* 헤더 */}
       <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
+        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', transition: 'opacity 150ms ease' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: 'var(--shadow-indigo)' }}>
             <svg viewBox="0 0 20 20" style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5Z" strokeLinejoin="round"/></svg>
           </div>
@@ -246,7 +247,7 @@ export default function BriefPreviewClient({ projectId }: Props) {
             <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2 }}>BriefLab</div>
             <div style={{ fontSize: 11, color: 'var(--ink-500)' }}>AI 브리프 연습 플랫폼</div>
           </div>
-        </a>
+        </Link>
         <div style={{ fontSize: 12, color: 'var(--ink-500)', fontWeight: 500 }}>1 / 5단계 · 브리프 수령</div>
       </header>
 

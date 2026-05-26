@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as Icon from '@/components/ui/Icon';
 import {
@@ -134,7 +135,7 @@ export default function BriefNewClient({ preferredField }: BriefNewClientProps) 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-        <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit' }}>
+        <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', transition: 'opacity 150ms ease' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: 'var(--shadow-indigo)' }}>
             <Icon.Spark2 style={{ width: 16, height: 16 }} />
           </div>
@@ -142,7 +143,7 @@ export default function BriefNewClient({ preferredField }: BriefNewClientProps) 
             <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em' }}>BriefLab</div>
             <div style={{ fontSize: 11, color: 'var(--ink-500)' }}>AI 브리프 연습 플랫폼</div>
           </div>
-        </a>
+        </Link>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
           <StepDot num={1} label="설정" active />
           <Dash />

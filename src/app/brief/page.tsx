@@ -1,7 +1,5 @@
-import { getProfile } from '@/lib/supabase/profiles'
-import BriefPageClient from '@/components/brief/BriefPageClient'
+import { redirect } from 'next/navigation'
 
-export default async function BriefPage() {
-  const profile = await getProfile()
-  return <BriefPageClient preferredField={profile?.preferred_design_type ?? null} />
+export default function BriefPage() {
+  redirect('/brief/new')
 }

@@ -105,7 +105,7 @@ const Header = ({ empty, onToggle, nickname }: {
 
   return (
     <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', transition: 'opacity 150ms ease' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
         <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: 'var(--shadow-indigo)' }}>
           <Icon.Spark2 style={{ width: 16, height: 16 }} />
         </div>
@@ -113,10 +113,15 @@ const Header = ({ empty, onToggle, nickname }: {
           <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2, letterSpacing: '-0.01em', whiteSpace: 'nowrap' }}>BriefLab</div>
           <div style={{ fontSize: 11, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>AI 브리프 연습 플랫폼</div>
         </div>
-      </div>
+      </Link>
       <nav style={{ display: 'flex', gap: 4, fontSize: 13.5, fontWeight: 600 }}>
-        {(['대시보드', '브리프', '포트폴리오', '커뮤니티'] as const).map((t, i) => (
-          <a key={t} href={i === 1 ? '/brief' : '#'} style={{ padding: '8px 14px', borderRadius: 8, textDecoration: 'none', background: i === 0 ? 'var(--indigo-50)' : 'transparent', color: i === 0 ? 'var(--indigo-700)' : 'var(--ink-600)', whiteSpace: 'nowrap' }}>{t}</a>
+        {([
+          { label: '대시보드', href: '/dashboard' },
+          { label: '브리프', href: '/brief/new' },
+          { label: '포트폴리오', href: '#' },
+          { label: '커뮤니티', href: '#' },
+        ] as const).map(({ label, href }, i) => (
+          <a key={label} href={href} style={{ padding: '8px 14px', borderRadius: 8, textDecoration: 'none', background: i === 0 ? 'var(--indigo-50)' : 'transparent', color: i === 0 ? 'var(--indigo-700)' : 'var(--ink-600)', whiteSpace: 'nowrap' }}>{label}</a>
         ))}
       </nav>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -347,7 +352,7 @@ const EmptyActive = () => (
       <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--ink-900)', letterSpacing: '-0.01em', marginBottom: 6 }}>아직 진행 중인 브리프가 없어요</div>
       <div style={{ fontSize: 13.5, color: 'var(--ink-500)', lineHeight: 1.6 }}>첫 번째 브리프를 시작해볼까요?<br />분야와 난이도를 골라 5분 만에 시작할 수 있어요.</div>
     </div>
-    <Link href="/brief" style={{ textDecoration: 'none' }}>
+    <Link href="/brief/new" style={{ textDecoration: 'none' }}>
       <button style={{ background: 'var(--indigo-600)', color: '#fff', border: 'none', fontSize: 13.5, fontWeight: 700, padding: '10px 18px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', boxShadow: 'var(--shadow-indigo)', cursor: 'pointer' }}>
         <Icon.Plus style={{ width: 14, height: 14 }} /> 첫 브리프 시작하기
       </button>
@@ -451,7 +456,7 @@ export const Dashboard = () => {
 
       {/* Sticky new brief CTA */}
       <div style={{ position: 'sticky', bottom: 24, marginTop: -24, marginBottom: 24, display: 'flex', justifyContent: 'center', zIndex: 5 }}>
-        <Link href="/brief" style={{ textDecoration: 'none' }}>
+        <Link href="/brief/new" style={{ textDecoration: 'none' }}>
           <button style={{ background: 'var(--indigo-600)', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '14px 26px', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 12px 32px rgba(79,70,229,0.4)', letterSpacing: '-0.01em', whiteSpace: 'nowrap', cursor: 'pointer' }}>
             <Icon.Plus style={{ width: 18, height: 18 }} /> 새 브리프 시작하기
           </button>
