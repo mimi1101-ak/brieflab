@@ -29,6 +29,8 @@ export async function insertDraftProject(
     // 배포 환경에서 미들웨어 세션이 전달 안 된 경우 fallback: 익명 로그인
     const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously()
     if (anonError || !anonData.user) {
+      console.error('[BriefLab] 익명 로그인 상세 에러:', JSON.stringify(anonError))
+      console.error('[BriefLab] anonData:', JSON.stringify(anonData))
       throw new Error('로그인에 실패했어요. 다시 시도해주세요.')
     }
     user = anonData.user
