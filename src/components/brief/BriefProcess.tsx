@@ -156,12 +156,25 @@ const StepDeliver = ({ brief, onFinish }: { brief: BriefData; onFinish: () => vo
   </div>
 );
 
-export const BriefProcess = ({ brief, onBack, onFinish }: { brief: BriefData; onBack: () => void; onFinish: () => void }) => {
-  const [stepIdx, setStepIdx] = React.useState(0);
+export const BriefProcess = ({
+  brief, onBack, onFinish,
+  initialStepIdx = 0,
+  embedded = false,
+}: {
+  brief: BriefData;
+  onBack: () => void;
+  onFinish: () => void;
+  /** DB current_step を mapDbStepToComponentIdx() で変換した値を渡す */
+  initialStepIdx?: number;
+  /** true のとき: 自前ヘッダー非表示・minHeight を auto に変更 */
+  embedded?: boolean;
+}) => {
+  const [stepIdx, setStepIdx] = React.useState(initialStepIdx);
   const next = () => setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ink-50)' }}>
+    <div style={{ minHeight: embedded ? 'auto' : '100vh', display: 'flex', flexDirection: 'column', background: embedded ? 'transparent' : 'var(--ink-50)' }}>
+      {!embedded && (
       <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
         <button type="button" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', background: 'transparent', border: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-700)', padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}>
           <Icon.ChevronLeft style={{ width: 16, height: 16 }} /> 브리프로 돌아가기
@@ -172,7 +185,8 @@ export const BriefProcess = ({ brief, onBack, onFinish }: { brief: BriefData; on
         </div>
         <div style={{ fontSize: 12, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>{stepIdx + 1} / {STEPS.length} — {STEPS[stepIdx].label}</div>
       </header>
-      <main style={{ flex: 1, maxWidth: 1100, width: '100%', margin: '0 auto', padding: '32px 36px', display: 'grid', gridTemplateColumns: '260px minmax(0,1fr)', gap: 24, alignItems: 'flex-start' }}>
+      )}
+      <main style={{ flex: 1, maxWidth: 1100, width: '100%', margin: '0 auto', padding: embedded ? '24px 0' : '32px 36px', display: 'grid', gridTemplateColumns: '260px minmax(0,1fr)', gap: 24, alignItems: 'flex-start' }}>
         <ProcessRail activeIdx={stepIdx} />
         <div style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: '32px 36px', boxShadow: 'var(--shadow-xs)', minHeight: 480 }}>
           {stepIdx === 0 && <StepReceive brief={brief} onNext={next} />}

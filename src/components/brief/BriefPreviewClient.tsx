@@ -86,9 +86,15 @@ function ConfirmDialog({ onConfirm, onCancel, loading }: { onConfirm: () => void
   );
 }
 
-interface Props { projectId: string | null }
+interface Props {
+  projectId: string | null;
+  /** false のとき: 수락/재생성/거절 버튼 영역을 숨김 (기본 true) */
+  showActions?: boolean;
+  /** true のとき: 자체 헤더 숨김 + minHeight auto (탭 내부 임베드용) */
+  embedded?: boolean;
+}
 
-export default function BriefPreviewClient({ projectId }: Props) {
+export default function BriefPreviewClient({ projectId, showActions = true, embedded = false }: Props) {
   const router = useRouter();
   const { projectId: storeId, form: storeForm, brief: storeBrief, emailBody: storeEmailBody, setPreviewData, clear } = useBriefStore();
 
@@ -225,7 +231,7 @@ export default function BriefPreviewClient({ projectId }: Props) {
   const anyLoading = action !== null;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--ink-50)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: embedded ? 'auto' : '100vh', background: embedded ? 'transparent' : 'var(--ink-50)', display: 'flex', flexDirection: 'column' }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {showConfirm && (
@@ -237,8 +243,8 @@ export default function BriefPreviewClient({ projectId }: Props) {
       )}
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
-      {/* 헤더 */}
-      <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+      {/* 헤더 — embedded 모드에서는 부모 페이지 헤더 사용 */}
+      {!embedded && <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
         <Link href="/dashboard" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: 'inherit', transition: 'opacity 150ms ease' }} onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.75'; }} onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: 'var(--shadow-indigo)' }}>
             <svg viewBox="0 0 20 20" style={{ width: 16, height: 16 }} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M10 2l1.5 4.5L16 8l-4.5 1.5L10 14l-1.5-4.5L4 8l4.5-1.5Z" strokeLinejoin="round"/></svg>
@@ -249,9 +255,9 @@ export default function BriefPreviewClient({ projectId }: Props) {
           </div>
         </Link>
         <div style={{ fontSize: 12, color: 'var(--ink-500)', fontWeight: 500 }}>1 / 5단계 · 브리프 수령</div>
-      </header>
+      </header>}
 
-      <main style={{ flex: 1, maxWidth: 720, width: '100%', margin: '0 auto', padding: '32px 24px 80px' }}>
+      <main style={{ flex: 1, maxWidth: 720, width: '100%', margin: '0 auto', padding: embedded ? '24px 24px 32px' : '32px 24px 80px' }}>
         {/* 컨텍스트 바 */}
         <div style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -324,45 +330,49 @@ export default function BriefPreviewClient({ projectId }: Props) {
           )}
         </div>
 
-        {/* 액션 버튼 3개 */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-          {/* ① 수락하기 */}
-          <button
-            onClick={handleAccept}
-            disabled={anyLoading}
-            style={{ flex: '2 1 160px', background: anyLoading && action !== 'accept' ? 'var(--ink-200)' : '#534AB7', color: anyLoading && action !== 'accept' ? 'var(--ink-400)' : '#fff', border: 'none', fontSize: 15, fontWeight: 700, padding: '14px 20px', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: anyLoading ? 'not-allowed' : 'pointer', boxShadow: anyLoading ? 'none' : '0 8px 20px rgba(83,74,183,0.35)', letterSpacing: '-0.01em', transition: 'all 160ms ease' }}
-          >
-            {action === 'accept'
-              ? <><div style={{ width: 16, height: 16, borderRadius: 999, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />수락 중…</>
-              : <><svg viewBox="0 0 20 20" style={{ width: 17, height: 17 }} fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M4 10l5 5 7-8" strokeLinecap="round" strokeLinejoin="round"/></svg>수락하기</>
-            }
-          </button>
+        {/* 액션 버튼 3개 — showActions=false 시 완전 숨김 */}
+        {showActions && (
+          <>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+              {/* ① 수락하기 */}
+              <button
+                onClick={handleAccept}
+                disabled={anyLoading}
+                style={{ flex: '2 1 160px', background: anyLoading && action !== 'accept' ? 'var(--ink-200)' : '#534AB7', color: anyLoading && action !== 'accept' ? 'var(--ink-400)' : '#fff', border: 'none', fontSize: 15, fontWeight: 700, padding: '14px 20px', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, cursor: anyLoading ? 'not-allowed' : 'pointer', boxShadow: anyLoading ? 'none' : '0 8px 20px rgba(83,74,183,0.35)', letterSpacing: '-0.01em', transition: 'all 160ms ease' }}
+              >
+                {action === 'accept'
+                  ? <><div style={{ width: 16, height: 16, borderRadius: 999, border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', animation: 'spin 0.7s linear infinite' }} />수락 중…</>
+                  : <><svg viewBox="0 0 20 20" style={{ width: 17, height: 17 }} fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M4 10l5 5 7-8" strokeLinecap="round" strokeLinejoin="round"/></svg>수락하기</>
+                }
+              </button>
 
-          {/* ② 다시 생성하기 */}
-          <button
-            onClick={handleRegenerate}
-            disabled={anyLoading}
-            style={{ flex: '1 1 120px', padding: '14px 18px', border: '1.5px solid var(--ink-200)', background: '#fff', color: anyLoading ? 'var(--ink-400)' : 'var(--ink-700)', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: anyLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap', transition: 'all 140ms ease' }}
-          >
-            {action === 'regenerate'
-              ? <><div style={{ width: 13, height: 13, borderRadius: 999, border: '2px solid var(--ink-300)', borderTopColor: 'var(--indigo-600)', animation: 'spin 0.7s linear infinite' }} />생성 중…</>
-              : <><svg viewBox="0 0 20 20" style={{ width: 15, height: 15 }} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 10a6 6 0 116 6" strokeLinecap="round"/><path d="M4 14v-4H8" strokeLinecap="round" strokeLinejoin="round"/></svg>다시 생성하기</>
-            }
-          </button>
+              {/* ② 다시 생성하기 */}
+              <button
+                onClick={handleRegenerate}
+                disabled={anyLoading}
+                style={{ flex: '1 1 120px', padding: '14px 18px', border: '1.5px solid var(--ink-200)', background: '#fff', color: anyLoading ? 'var(--ink-400)' : 'var(--ink-700)', fontSize: 14, fontWeight: 600, borderRadius: 10, cursor: anyLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, whiteSpace: 'nowrap', transition: 'all 140ms ease' }}
+              >
+                {action === 'regenerate'
+                  ? <><div style={{ width: 13, height: 13, borderRadius: 999, border: '2px solid var(--ink-300)', borderTopColor: 'var(--indigo-600)', animation: 'spin 0.7s linear infinite' }} />생성 중…</>
+                  : <><svg viewBox="0 0 20 20" style={{ width: 15, height: 15 }} fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M4 10a6 6 0 116 6" strokeLinecap="round"/><path d="M4 14v-4H8" strokeLinecap="round" strokeLinejoin="round"/></svg>다시 생성하기</>
+                }
+              </button>
 
-          {/* ③ 거절하기 */}
-          <button
-            onClick={() => { if (!anyLoading) setShowConfirm(true); }}
-            disabled={anyLoading}
-            style={{ flex: '1 1 90px', padding: '14px 16px', border: '1.5px solid var(--ink-200)', background: 'transparent', color: anyLoading ? 'var(--ink-300)' : 'var(--ink-500)', fontSize: 14, fontWeight: 500, borderRadius: 10, cursor: anyLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 140ms ease' }}
-          >
-            거절하기
-          </button>
-        </div>
+              {/* ③ 거절하기 */}
+              <button
+                onClick={() => { if (!anyLoading) setShowConfirm(true); }}
+                disabled={anyLoading}
+                style={{ flex: '1 1 90px', padding: '14px 16px', border: '1.5px solid var(--ink-200)', background: 'transparent', color: anyLoading ? 'var(--ink-300)' : 'var(--ink-500)', fontSize: 14, fontWeight: 500, borderRadius: 10, cursor: anyLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 140ms ease' }}
+              >
+                거절하기
+              </button>
+            </div>
 
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-400)' }}>
-          수락하면 대시보드의 '진행 중 작업'에 자동으로 저장돼요.
-        </div>
+            <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--ink-400)' }}>
+              수락하면 대시보드의 '진행 중 작업'에 자동으로 저장돼요.
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
