@@ -19,9 +19,15 @@ export async function insertDraftProject(
   emailBody: string,
 ): Promise<string> {
   const supabase = createClient()
+
+  // RLS: user_id를 반드시 포함해야 INSERT 정책을 통과함
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('User not authenticated')
+
   const { data, error } = await supabase
     .from('projects')
     .insert({
+      user_id: user.id,
       title: brief.project.name,
       field: form.field!,
       difficulty: form.difficulty!,
