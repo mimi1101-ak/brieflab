@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BriefPreviewClient from '@/components/brief/BriefPreviewClient';
 import { BriefProcess } from '@/components/brief/BriefProcess';
-import { BriefData, BriefForm } from '@/components/brief/types';
-import { getProject } from '@/lib/supabase/projects';
-import { mapDbStepToComponentIdx } from '@/lib/stepMapping';
+import { BriefData, BriefForm, SentMessage } from '@/components/brief/types';
+import { getProject, updateProjectStep } from '@/lib/supabase/projects';
+import { fetchProjectMessages } from '@/lib/messages';
+import { mapDbStepToComponentIdx, mapComponentIdxToDbStep } from '@/lib/stepMapping';
 
 // ─── 데이터 복원용 상수 ──────────────────────────────────────────────────────
 const FIELD_MAP: Record<string, string> = {
@@ -106,15 +107,19 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<Tab>('workspace');
 
-  const [pageLoading, setPageLoading]   = React.useState(true);
-  const [notFound,    setNotFound]      = React.useState(false);
-  const [title,       setTitle]         = React.useState('');
-  const [brief,       setBrief]         = React.useState<BriefData | null>(null);
-  const [initialStep, setInitialStep]   = React.useState(0);
+  const [pageLoading,      setPageLoading]      = React.useState(true);
+  const [notFound,         setNotFound]         = React.useState(false);
+  const [title,            setTitle]            = React.useState('');
+  const [brief,            setBrief]            = React.useState<BriefData | null>(null);
+  const [initialStep,      setInitialStep]      = React.useState(0);
+  const [initialMessages,  setInitialMessages]  = React.useState<SentMessage[]>([]);
 
   React.useEffect(() => {
-    getProject(projectId)
-      .then((p) => {
+    Promise.all([
+      getProject(projectId),
+      fetchProjectMessages(projectId),
+    ])
+      .then(([p, messages]) => {
         if (!p) { setNotFound(true); setPageLoading(false); return; }
 
         // ── BriefData 복원 ────────────────────────────────────────────────
@@ -140,6 +145,7 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
         setTitle(p.title);
         setBrief(reconstructedBrief);
         setInitialStep(mapDbStepToComponentIdx(p.current_step));
+        setInitialMessages(messages);
         setPageLoading(false);
       })
       .catch((err) => {
@@ -147,6 +153,12 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
         setNotFound(true);
         setPageLoading(false);
       });
+  }, [projectId]);
+
+  // 단계 전진 시 projects DB 업데이트
+  const handleStepChange = React.useCallback(async (newStepIdx: number): Promise<void> => {
+    const dbStep = mapComponentIdxToDbStep(newStepIdx);
+    await updateProjectStep(projectId, dbStep, newStepIdx);
   }, [projectId]);
 
   if (pageLoading) return <PageSkeleton />;
@@ -230,6 +242,9 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
           embedded={true}
           onBack={() => setActiveTab('brief')}
           onFinish={() => router.push('/dashboard')}
+          projectId={projectId}
+          initialMessages={initialMessages}
+          onStepChange={handleStepChange}
         />
       </div>
     </div>

@@ -41,3 +41,16 @@ export interface Lookup {
   budget: Record<string, string>;
   styles: Record<string, string>;
 }
+
+/**
+ * 보낸 메일 1건 — DB messages 테이블의 subset.
+ * sender='user', type='qna_question' 인 행을 매핑한다.
+ * created_at: ISO string (DB 값) — 로컬 낙관적 레코드도 new Date().toISOString() 사용
+ */
+export interface SentMessage {
+  id: string;
+  project_id: string;
+  subject: string;
+  body: string;
+  created_at: string;
+}

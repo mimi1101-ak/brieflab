@@ -1,7 +1,8 @@
 'use client';
 import React from 'react';
 import * as Icon from '@/components/ui/Icon';
-import { BriefData } from './types';
+import { BriefData, SentMessage } from './types';
+import { insertUserMessage } from '@/lib/messages';
 
 const STEPS = [
   { id: 'receive', label: '브리프 수령', sub: '클라이언트의 요청 확인' },
@@ -60,12 +61,22 @@ const StepReceive = ({ brief, onNext }: { brief: BriefData; onNext: () => void }
   </div>
 );
 
-const StepQna = ({ brief, onNext }: { brief: BriefData; onNext: () => void }) => {
-  type SentMessage = { id: string; sentAt: Date; subject: string; body: string };
-  const [sentMessages, setSentMessages] = React.useState<SentMessage[]>([]);
+const StepQna = ({
+  brief,
+  onNext,
+  projectId,
+  initialMessages = [],
+}: {
+  brief: BriefData;
+  onNext: () => void;
+  projectId?: string;
+  initialMessages?: SentMessage[];
+}) => {
+  const [sentMessages, setSentMessages] = React.useState<SentMessage[]>(initialMessages);
   const [subjectInput, setSubjectInput] = React.useState('');
   const [bodyInput,    setBodyInput]    = React.useState('');
   const [usedChips,    setUsedChips]    = React.useState<Set<number>>(new Set());
+  const [saveError,    setSaveError]    = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const sentCount   = sentMessages.length;
@@ -113,23 +124,54 @@ const StepQna = ({ brief, onNext }: { brief: BriefData; onNext: () => void }) =>
 
   const handleSend = () => {
     if (!bodyInput.trim()) return;
-    const subject = subjectInput.trim() || `${brief.project.name} 관련 문의`;
-    setSentMessages((prev) => [...prev, { id: String(Date.now()), sentAt: new Date(), subject, body: bodyInput }]);
+    const subject     = subjectInput.trim() || `${brief.project.name} 관련 문의`;
+    const now         = new Date().toISOString();
+    const optimisticId = `local_${Date.now()}`;
+
+    // 1. 즉시 UI 반영 (낙관적 업데이트)
+    const optimistic: SentMessage = {
+      id: optimisticId,
+      project_id: projectId ?? '',
+      subject,
+      body: bodyInput,
+      created_at: now,
+    };
+    setSentMessages((prev) => [...prev, optimistic]);
     setSubjectInput('');
     setBodyInput('');
     setUsedChips(new Set());
     setTimeout(() => { if (textareaRef.current) textareaRef.current.style.height = '240px'; }, 0);
+
+    // 2. DB INSERT (비동기, 실패해도 UI는 유지)
+    if (projectId) {
+      insertUserMessage(projectId, subject, bodyInput).then((saved) => {
+        if (!saved) {
+          setSaveError(true);
+          setTimeout(() => setSaveError(false), 5000);
+        }
+      });
+    }
   };
 
-  const fmtTime = (d: Date) =>
-    `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
 
   return (
     <div>
       <style>{`
         @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin { to { transform:rotate(360deg); } }
+        @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
+
+      {/* 저장 실패 토스트 */}
+      {saveError && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          ⚠️ 저장에 실패했습니다. 새로고침 후 다시 시도해주세요.
+        </div>
+      )}
 
       {/* 헤더 */}
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>질의응답</h2>
@@ -145,7 +187,7 @@ const StepQna = ({ brief, onNext }: { brief: BriefData; onNext: () => void }) =>
         <div key={msg.id} style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', marginBottom: 14, overflow: 'hidden', animation: 'fadeSlideIn 300ms ease' }}>
           <div style={{ padding: '11px 16px 9px', borderBottom: '1px solid var(--ink-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.subject}</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-400)', flexShrink: 0 }}>{fmtTime(msg.sentAt)}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-400)', flexShrink: 0 }}>{fmtTime(msg.created_at)}</div>
           </div>
           <div style={{ padding: '10px 16px', fontSize: 13, color: 'var(--ink-600)', lineHeight: 1.6, overflow: 'hidden', maxHeight: '4.8em', whiteSpace: 'pre-wrap' }}>
             {msg.body}
@@ -325,6 +367,9 @@ export const BriefProcess = ({
   brief, onBack, onFinish,
   initialStepIdx = 0,
   embedded = false,
+  projectId,
+  initialMessages = [],
+  onStepChange,
 }: {
   brief: BriefData;
   onBack: () => void;
@@ -333,9 +378,22 @@ export const BriefProcess = ({
   initialStepIdx?: number;
   /** true のとき: 自前ヘッダー非表示・minHeight を auto に変更 */
   embedded?: boolean;
+  /** 워크스페이스 진입 시 주입되는 프로젝트 ID (브리프 생성 흐름에선 없음) */
+  projectId?: string;
+  /** DB에서 복원한 QnA 메시지 목록 (브리프 생성 흐름에선 []) */
+  initialMessages?: SentMessage[];
+  /** 단계 전진 시 DB 업데이트를 수행하는 콜백 (브리프 생성 흐름에선 없음) */
+  onStepChange?: (newStepIdx: number) => Promise<void>;
 }) => {
   const [stepIdx, setStepIdx] = React.useState(initialStepIdx);
-  const next = () => setStepIdx((i) => Math.min(i + 1, STEPS.length - 1));
+  const next = () => {
+    const newIdx = Math.min(stepIdx + 1, STEPS.length - 1);
+    setStepIdx(newIdx);
+    // 낙관적: UI 즉시 전진, DB 업데이트는 백그라운드
+    onStepChange?.(newIdx).catch((e) =>
+      console.error('[BriefLab] onStepChange 실패:', e),
+    );
+  };
 
   return (
     <div style={{ minHeight: embedded ? 'auto' : '100vh', display: 'flex', flexDirection: 'column', background: embedded ? 'transparent' : 'var(--ink-50)' }}>
@@ -355,7 +413,7 @@ export const BriefProcess = ({
         <ProcessRail activeIdx={stepIdx} />
         <div style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: '32px 36px', boxShadow: 'var(--shadow-xs)', minHeight: 480 }}>
           {stepIdx === 0 && <StepReceive brief={brief} onNext={next} />}
-          {stepIdx === 1 && <StepQna brief={brief} onNext={next} />}
+          {stepIdx === 1 && <StepQna brief={brief} onNext={next} projectId={projectId} initialMessages={initialMessages} />}
           {stepIdx === 2 && <StepDraft onNext={next} />}
           {stepIdx === 3 && <StepFeedback brief={brief} onNext={next} />}
           {stepIdx === 4 && <StepDeliver brief={brief} onFinish={onFinish} />}

@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { BriefData, BriefForm } from '@/components/brief/types'
-import type { ProjectRow } from '@/types/database'
+import type { CurrentStep, ProjectRow, StepIndex } from '@/types/database'
 
 const DURATION_LABEL: Record<string, string> = {
   w1: '1주 이내', w2: '2주', m1: '1개월', m2: '2개월 이상',
@@ -104,4 +104,28 @@ export async function getProject(id: string): Promise<ProjectRow | null> {
     .single()
   if (error) return null
   return data as unknown as ProjectRow
+}
+
+/**
+ * 단계 전진 시 projects.current_step / step_index 동기화.
+ * 에러 시 false 반환 (throw 하지 않음).
+ */
+export async function updateProjectStep(
+  projectId: string,
+  dbStep: string,
+  stepIdx: number,
+): Promise<boolean> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('projects')
+    .update({
+      current_step: dbStep as CurrentStep,
+      step_index: stepIdx as StepIndex,
+    })
+    .eq('id', projectId)
+  if (error) {
+    console.error('[BriefLab] step 업데이트 실패:', error)
+    return false
+  }
+  return true
 }
