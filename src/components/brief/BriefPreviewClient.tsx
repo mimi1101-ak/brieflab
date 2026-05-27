@@ -194,8 +194,9 @@ export default function BriefPreviewClient({ projectId }: Props) {
 
   // ─── 거절하기 ────────────────────────────────────────────────────────────
   const handleReject = async () => {
-    if (!projectId || action) return;
+    if (!projectId) return;
     setAction('reject');
+    setShowConfirm(false);
     try {
       await deleteProject(projectId);
       clear();
@@ -203,7 +204,6 @@ export default function BriefPreviewClient({ projectId }: Props) {
     } catch {
       showError('거절 처리에 실패했어요. 다시 시도해주세요.');
       setAction(null);
-      setShowConfirm(false);
     }
   };
 
@@ -352,7 +352,7 @@ export default function BriefPreviewClient({ projectId }: Props) {
 
           {/* ③ 거절하기 */}
           <button
-            onClick={() => { if (!anyLoading) { setShowConfirm(true); setAction('reject'); } }}
+            onClick={() => { if (!anyLoading) setShowConfirm(true); }}
             disabled={anyLoading}
             style={{ flex: '1 1 90px', padding: '14px 16px', border: '1.5px solid var(--ink-200)', background: 'transparent', color: anyLoading ? 'var(--ink-300)' : 'var(--ink-500)', fontSize: 14, fontWeight: 500, borderRadius: 10, cursor: anyLoading ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap', transition: 'all 140ms ease' }}
           >
