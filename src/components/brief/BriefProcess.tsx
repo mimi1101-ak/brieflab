@@ -61,34 +61,199 @@ const StepReceive = ({ brief, onNext }: { brief: BriefData; onNext: () => void }
 );
 
 const StepQna = ({ brief, onNext }: { brief: BriefData; onNext: () => void }) => {
+  type SentMessage = { id: string; sentAt: Date; subject: string; body: string };
+  const [sentMessages, setSentMessages] = React.useState<SentMessage[]>([]);
+  const [subjectInput, setSubjectInput] = React.useState('');
+  const [bodyInput,    setBodyInput]    = React.useState('');
+  const [usedChips,    setUsedChips]    = React.useState<Set<number>>(new Set());
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const sentCount   = sentMessages.length;
+  const canSendMore = sentCount < 3;
+
   const suggested = [
     `타겟 고객의 사용 환경(모바일/PC 비율)이 어떻게 되나요?`,
     `${brief.fieldLabel}의 톤앤매너 레퍼런스를 더 공유해주실 수 있나요?`,
     `최종 산출물의 활용 채널이 구체적으로 어디인가요?`,
   ];
-  const [selected, setSelected] = React.useState([0]);
+
+  // 멀티라인 placeholder — 배열로 작성해 가독성 확보
+  const PLACEHOLDER_BODY = [
+    `안녕하세요, ${brief.persona.company} ${brief.persona.name} ${brief.persona.title}님.`,
+    '',
+    '보내주신 브리프 잘 확인했습니다.',
+    '작업 진행에 앞서 몇 가지 여쭤보고 싶은 부분이 있습니다.',
+    '',
+    '1. ',
+    '2. ',
+    '',
+    '확인 부탁드립니다. 감사합니다.',
+  ].join('\n');
+
+  const autoResize = React.useCallback((el: HTMLTextAreaElement) => {
+    el.style.height = 'auto';
+    el.style.height = `${Math.max(el.scrollHeight, 240)}px`;
+  }, []);
+
+  const charCount = bodyInput.length;
+  const charColor = charCount < 200 ? 'var(--ink-500)' : charCount <= 400 ? 'var(--success)' : '#F59E0B';
+
+  const addChip = (idx: number) => {
+    const text    = suggested[idx];
+    const newBody = bodyInput ? `${bodyInput}\n${text}` : text;
+    setBodyInput(newBody);
+    setUsedChips((prev) => new Set([...prev, idx]));
+    setTimeout(() => {
+      if (!textareaRef.current) return;
+      autoResize(textareaRef.current);
+      textareaRef.current.focus();
+      textareaRef.current.setSelectionRange(newBody.length, newBody.length);
+    }, 0);
+  };
+
+  const handleSend = () => {
+    if (!bodyInput.trim()) return;
+    const subject = subjectInput.trim() || `${brief.project.name} 관련 문의`;
+    setSentMessages((prev) => [...prev, { id: String(Date.now()), sentAt: new Date(), subject, body: bodyInput }]);
+    setSubjectInput('');
+    setBodyInput('');
+    setUsedChips(new Set());
+    setTimeout(() => { if (textareaRef.current) textareaRef.current.style.height = '240px'; }, 0);
+  };
+
+  const fmtTime = (d: Date) =>
+    `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
   return (
     <div>
+      <style>{`
+        @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { to { transform:rotate(360deg); } }
+      `}</style>
+
+      {/* 헤더 */}
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>질의응답</h2>
-      <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>브리프에서 모호한 부분을 클라이언트에게 질문해보세요.</p>
-      <div style={{ marginBottom: 14, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-700)' }}>추천 질문</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-        {suggested.map((q, i) => {
-          const sel = selected.includes(i);
-          return (
-            <button key={i} type="button" onClick={() => setSelected(sel ? selected.filter((x) => x !== i) : [...selected, i])} style={{ textAlign: 'left', background: sel ? 'var(--indigo-50)' : 'var(--white)', border: sel ? '1.5px solid var(--indigo-600)' : '1.5px solid var(--ink-200)', borderRadius: 'var(--radius)', padding: '12px 14px', fontSize: 13.5, color: 'var(--ink-900)', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <div style={{ width: 18, height: 18, borderRadius: 4, marginTop: 1, flexShrink: 0, border: sel ? 'none' : '1.5px solid var(--ink-300)', background: sel ? 'var(--indigo-600)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {sel && <Icon.Check style={{ width: 12, height: 12, color: '#fff' }} />}
+      <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 14px' }}>브리프에서 모호한 부분을 클라이언트에게 질문해보세요.</p>
+
+      {/* 횟수 안내 배너 */}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 999, padding: '6px 14px', marginBottom: 22, fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>
+        💌 최대 3회까지 메일을 주고받을 수 있어요 ({sentCount}/3)
+      </div>
+
+      {/* 보낸 메일 누적 목록 */}
+      {sentMessages.map((msg) => (
+        <div key={msg.id} style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', marginBottom: 14, overflow: 'hidden', animation: 'fadeSlideIn 300ms ease' }}>
+          <div style={{ padding: '11px 16px 9px', borderBottom: '1px solid var(--ink-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.subject}</div>
+            <div style={{ fontSize: 11, color: 'var(--ink-400)', flexShrink: 0 }}>{fmtTime(msg.sentAt)}</div>
+          </div>
+          <div style={{ padding: '10px 16px', fontSize: 13, color: 'var(--ink-600)', lineHeight: 1.6, overflow: 'hidden', maxHeight: '4.8em', whiteSpace: 'pre-wrap' }}>
+            {msg.body}
+          </div>
+          <div style={{ padding: '8px 16px 10px', borderTop: '1px solid var(--ink-100)', display: 'flex', alignItems: 'center', gap: 7, fontSize: 12, color: 'var(--ink-400)' }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid var(--ink-200)', borderTopColor: 'var(--ink-400)', animation: 'spin 1.2s linear infinite', flexShrink: 0 }} />
+            클라이언트가 메일을 확인 중입니다...
+          </div>
+        </div>
+      ))}
+
+      {/* ── 메일 작성 영역 (3회 미만) ────────────────────────────────── */}
+      {canSendMore ? (
+        <div style={{ border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: 'var(--white)' }}>
+
+          {/* 받는 사람 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--ink-100)' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-400)', flexShrink: 0, width: 52 }}>받는 사람</span>
+            <span style={{ fontSize: 13.5, color: 'var(--ink-600)' }}>
+              {brief.persona.name} {brief.persona.title} ({brief.persona.email})
+            </span>
+          </div>
+
+          {/* 제목 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--ink-100)' }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-400)', flexShrink: 0, width: 52 }}>제목</span>
+            <input
+              value={subjectInput}
+              onChange={(e) => setSubjectInput(e.target.value)}
+              placeholder={`예: ${brief.project.name} 관련 문의드립니다`}
+              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13.5, color: 'var(--ink-900)', background: 'transparent', fontFamily: 'inherit' }}
+            />
+          </div>
+
+          {/* 본문 — 커스텀 멀티라인 플레이스홀더 오버레이 */}
+          <div style={{ position: 'relative', borderBottom: '1px solid var(--ink-100)' }}>
+            {!bodyInput && (
+              <div
+                aria-hidden
+                style={{ position: 'absolute', inset: 0, padding: '14px 16px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-400)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+              >
+                {PLACEHOLDER_BODY}
               </div>
-              {q}
+            )}
+            <textarea
+              ref={textareaRef}
+              value={bodyInput}
+              onChange={(e) => { setBodyInput(e.target.value); autoResize(e.target); }}
+              style={{ width: '100%', minHeight: 240, padding: '14px 16px', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', fontSize: 14, lineHeight: 1.7, fontFamily: 'inherit', color: bodyInput ? 'var(--ink-900)' : 'transparent', caretColor: 'var(--ink-900)', background: 'transparent', display: 'block', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {/* 추천 질문 칩 */}
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ink-100)', background: 'var(--ink-50)' }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-600)', marginBottom: 8 }}>
+              📌 추천 질문{' '}
+              <span style={{ fontWeight: 400, color: 'var(--ink-400)' }}>(클릭하면 본문에 추가)</span>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {suggested.map((q, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => addChip(i)}
+                  style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, color: 'var(--ink-700)', cursor: 'pointer', lineHeight: 1.5, whiteSpace: 'nowrap', transition: 'opacity 150ms ease', opacity: usedChips.has(i) ? 0.45 : 1 }}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 하단: 글자 수 + 보내기 버튼 */}
+          <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 500, color: charColor }}>
+              {charCount}자 <span style={{ color: 'var(--ink-300)' }}>/</span> 권장 200~400자
+            </div>
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!bodyInput.trim()}
+              style={{ ...pBtn, opacity: bodyInput.trim() ? 1 : 0.45, cursor: bodyInput.trim() ? 'pointer' : 'not-allowed' }}
+            >
+              📨 메일 보내기
             </button>
-          );
-        })}
-      </div>
-      <textarea placeholder="직접 질문을 작성하세요 (선택)" style={{ width: '100%', minHeight: 80, padding: '12px 14px', border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 18 }} />
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-        <button type="button" onClick={onNext} style={pBtn}>질문 보내기 <Icon.Wand style={{ width: 14, height: 14 }} /></button>
-      </div>
+          </div>
+        </div>
+
+      ) : (
+        /* 3회 완료 안내 */
+        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 'var(--radius)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#166534' }}>
+            ✅ 질의응답을 마쳤어요. 다음 단계인 &apos;시안 제출&apos;로 넘어가세요.
+          </div>
+          <button type="button" onClick={onNext} style={pBtn}>
+            다음 단계로 <Icon.ChevronRight style={{ width: 14, height: 14 }} />
+          </button>
+        </div>
+      )}
+
+      {/* 조기 종료 버튼 — 1회 이상 보냈고 3회 미만일 때 */}
+      {sentCount >= 1 && canSendMore && (
+        <div style={{ textAlign: 'right', marginTop: 14 }}>
+          <button type="button" onClick={onNext} style={{ ...sBtn, fontSize: 13, padding: '8px 14px', color: 'var(--ink-500)' }}>
+            질의응답 끝내기 →
+          </button>
+        </div>
+      )}
     </div>
   );
 };
