@@ -21,8 +21,18 @@ export async function insertDraftProject(
   const supabase = createClient()
 
   // RLS: user_id를 반드시 포함해야 INSERT 정책을 통과함
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('User not authenticated')
+  const { data: { user: existingUser } } = await supabase.auth.getUser()
+
+  let user = existingUser
+
+  if (!user) {
+    // 배포 환경에서 미들웨어 세션이 전달 안 된 경우 fallback: 익명 로그인
+    const { data: anonData, error: anonError } = await supabase.auth.signInAnonymously()
+    if (anonError || !anonData.user) {
+      throw new Error('로그인에 실패했어요. 다시 시도해주세요.')
+    }
+    user = anonData.user
+  }
 
   const { data, error } = await supabase
     .from('projects')
