@@ -222,6 +222,56 @@ const StepQna = ({
     }
   };
 
+  // 기존 메시지에 누락된 답장을 다시 받는 핸들러
+  const handleRetryReply = async (msg: SentMessage) => {
+    setLoadingReplyFor(msg.id);
+
+    // 이 메시지 이전까지의 대화 기록 구성
+    const history: { role: 'user' | 'assistant'; content: string }[] = [];
+    for (const m of sentMessages) {
+      if (m.id === msg.id) break;
+      history.push({ role: 'user', content: m.body });
+      if (replies[m.id]) {
+        history.push({ role: 'assistant', content: replies[m.id].body });
+      }
+    }
+
+    try {
+      const res = await fetch('/api/qna-reply', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id:      projectId ?? '',
+          user_subject:    msg.subject,
+          user_body:       msg.body,
+          persona_id:      brief.persona_id ?? '',
+          brief_summary:   `${brief.project.name}: ${brief.project.purpose}`,
+          message_history: history.slice(-6),
+        }),
+      });
+      const data = await res.json() as { reply_body?: string; reply_subject?: string; error?: string };
+
+      if (res.ok && data.reply_body) {
+        setReplies((prev) => ({
+          ...prev,
+          [msg.id]: {
+            subject:     data.reply_subject ?? `Re: ${msg.subject}`,
+            body:        data.reply_body!,
+            received_at: new Date().toISOString(),
+          },
+        }));
+      } else {
+        setReplyError(true);
+        setTimeout(() => setReplyError(false), 5000);
+      }
+    } catch {
+      setReplyError(true);
+      setTimeout(() => setReplyError(false), 5000);
+    } finally {
+      setLoadingReplyFor(null);
+    }
+  };
+
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
     return `${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -295,6 +345,19 @@ const StepQna = ({
               <div style={{ padding: '10px 16px 14px', fontSize: 14, color: 'var(--indigo-900)', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
                 {replies[msg.id].body}
               </div>
+            </div>
+          )}
+
+          {/* 답장 재요청 버튼 — 답장이 없고 로딩 중이 아닐 때 */}
+          {!replies[msg.id] && loadingReplyFor !== msg.id && !loadingReplyFor && (
+            <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => handleRetryReply(msg)}
+                style={{ background: 'var(--indigo-50)', border: '1px solid var(--indigo-200)', color: 'var(--indigo-700)', fontSize: 12.5, fontWeight: 600, padding: '7px 14px', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                ↩ 답장 받기
+              </button>
             </div>
           )}
 
