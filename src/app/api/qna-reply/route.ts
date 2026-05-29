@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getPersonaById } from '@/components/brief/personaPool';
 import type { Persona } from '@/components/brief/personaPool';
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// ⚠️ Anthropic 클라이언트를 모듈 최상위에서 생성하지 않음.
+// Turbopack 번들링 시 모듈 평가 시점에 process.env가 미주입될 수 있으므로
+// 요청마다 POST 핸들러 내에서 생성한다.
 
 // ─── 시스템 프롬프트 빌더 ───────────────────────────────────────────────────
 function buildSystemPrompt(persona: Persona | null, brief_summary: string): string {
@@ -58,6 +60,14 @@ ${brief_summary}`;
 // ─── POST 핸들러 ────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
+    // ANTHROPIC_API_KEY를 요청 시점에 읽어 클라이언트 생성
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      console.error('[BriefLab] ANTHROPIC_API_KEY 환경변수가 설정되지 않았습니다.');
+      return NextResponse.json({ error: 'API 키 설정 오류' }, { status: 500 });
+    }
+    const anthropic = new Anthropic({ apiKey });
+
     const body = await request.json() as {
       project_id:      string;
       user_subject:    string;
