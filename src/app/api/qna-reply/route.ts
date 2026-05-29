@@ -4,9 +4,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getPersonaById } from '@/components/brief/personaPool';
 import type { Persona } from '@/components/brief/personaPool';
 
-// ⚠️ Anthropic 클라이언트를 모듈 최상위에서 생성하지 않음.
-// Turbopack 번들링 시 모듈 평가 시점에 process.env가 미주입될 수 있으므로
-// 요청마다 POST 핸들러 내에서 생성한다.
+// Anthropic SDK는 Node.js 전용 API(net, tls, stream)를 사용하므로
+// Edge Runtime에서는 실행 불가. Vercel 포함 모든 환경에서 Node.js runtime 강제 지정.
+export const runtime = 'nodejs';
 
 // ─── 시스템 프롬프트 빌더 ───────────────────────────────────────────────────
 function buildSystemPrompt(persona: Persona | null, brief_summary: string): string {
