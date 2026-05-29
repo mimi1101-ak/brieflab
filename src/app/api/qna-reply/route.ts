@@ -52,6 +52,7 @@ ${persona.personality_notes}
 3. 위 캐릭터와 말투를 정확히 반영할 것
 4. 질문에 구체적으로 답변 (모르는 내용은 "확인 후 알려드리겠습니다" 처리)
 5. 200~400자 분량
+6. 마크다운 형식 절대 사용 금지 — **, --, ---, ##, *, _, \` 기호를 사용하지 말 것. 순수한 텍스트 이메일로만 작성할 것.
 
 [프로젝트 컨텍스트]
 ${brief_summary}`;
@@ -102,8 +103,18 @@ export async function POST(request: NextRequest) {
       messages,
     });
 
-    const replyBody    = response.content[0].type === 'text' ? response.content[0].text : '';
+    const replyText    = response.content[0].type === 'text' ? response.content[0].text : '';
     const replySubject = `Re: ${user_subject}`;
+
+    // 마크다운 기호 제거 — 이메일 답장은 순수 텍스트여야 함
+    const replyBody = replyText
+      .replace(/\*\*/g, '')
+      .replace(/\*/g, '')
+      .replace(/---+/g, '')
+      .replace(/##+ ?/g, '')
+      .replace(/_{2,}/g, '')
+      .replace(/`{1,3}/g, '')
+      .trim();
 
     // 5. Supabase에 assistant 메시지 저장
     const supabase   = await createClient();
