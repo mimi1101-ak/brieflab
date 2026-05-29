@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
 import { getPersonaById } from '@/components/brief/personaPool';
 import type { Persona } from '@/components/brief/personaPool';
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ─── 시스템 프롬프트 빌더 ───────────────────────────────────────────────────
 function buildSystemPrompt(persona: Persona | null, brief_summary: string): string {
@@ -73,37 +76,23 @@ export async function POST(request: NextRequest) {
     const systemPrompt = buildSystemPrompt(persona, brief_summary);
 
     // 3. Anthropic 메시지 배열 구성 (이전 대화 + 현재 질문)
-    const messages: { role: 'user' | 'assistant'; content: string }[] = [
-      ...message_history,
+    const messages: Anthropic.MessageParam[] = [
+      ...message_history.map((m) => ({
+        role:    m.role as 'user' | 'assistant',
+        content: m.content,
+      })),
       { role: 'user', content: user_body },
     ];
 
-    // 4. Anthropic API 호출 (native fetch)
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key':          process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version':  '2023-06-01',
-        'content-type':       'application/json',
-      },
-      body: JSON.stringify({
-        model:      'claude-haiku-4-5-20251001',
-        max_tokens: 600,
-        system:     systemPrompt,
-        messages,
-      }),
+    // 4. Anthropic SDK 호출
+    const response = await anthropic.messages.create({
+      model:      'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      system:     systemPrompt,
+      messages,
     });
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      console.error('[BriefLab] Anthropic API 에러:', anthropicRes.status, errText);
-      return NextResponse.json({ error: 'AI 답장 생성에 실패했습니다.' }, { status: 500 });
-    }
-
-    const anthropicData = await anthropicRes.json() as {
-      content: { type: string; text: string }[];
-    };
-    const replyBody    = anthropicData.content?.[0]?.text ?? '';
+    const replyBody    = response.content[0].type === 'text' ? response.content[0].text : '';
     const replySubject = `Re: ${user_subject}`;
 
     // 5. Supabase에 assistant 메시지 저장
