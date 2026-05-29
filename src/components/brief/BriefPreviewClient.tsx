@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useBriefStore } from '@/stores/briefStore';
 import { buildBrief } from '@/components/brief/briefData';
 import { buildEmailBody } from '@/lib/buildEmailBody';
-import { BriefData, BriefForm, Lookup } from '@/components/brief/types';
+import { BriefData, BriefForm, Lookup, Persona } from '@/components/brief/types';
+import { getPersonaById } from './personaPool';
+import { getProjectById } from './projectPool';
 import { insertDraftProject, acceptProject, deleteProject, getProject } from '@/lib/supabase/projects';
 
 // ─── 룩업 테이블 (BriefNewClient와 동일) ─────────────────────────────────────
@@ -134,9 +136,19 @@ export default function BriefPreviewClient({ projectId, showActions = true, embe
         duration: null, client: null, budget: null,
         styles: [], refUrl: '', avoid: '',
       };
+      const pooledPersona  = project.persona_id ? getPersonaById(project.persona_id) : undefined;
+      const persona        = pooledPersona ?? (content.persona as Persona);
+      const pooledProject  = project.project_template_id
+        ? getProjectById(project.project_template_id)
+        : undefined;
+      const projectData    = pooledProject
+        ? { name: pooledProject.name, purpose: pooledProject.purpose }
+        : (content.project as BriefData['project']);
       const reconstructedBrief: BriefData = {
-        persona:      content.persona      as BriefData['persona'],
-        project:      content.project      as BriefData['project'],
+        persona,
+        persona_id:          project.persona_id          ?? undefined,
+        project:             projectData,
+        project_template_id: project.project_template_id ?? undefined,
         dates:        content.dates        as BriefData['dates'],
         target:       content.target       as BriefData['target'],
         emotion:      String(content.emotion ?? ''),

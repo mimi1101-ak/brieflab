@@ -4,9 +4,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import BriefPreviewClient from '@/components/brief/BriefPreviewClient';
 import { BriefProcess } from '@/components/brief/BriefProcess';
-import { BriefData, BriefForm, SentMessage } from '@/components/brief/types';
+import { BriefData, BriefForm, SentMessage, Persona } from '@/components/brief/types';
+import { getPersonaById } from '@/components/brief/personaPool';
+import { getProjectById } from '@/components/brief/projectPool';
 import { getProject, updateProjectStep } from '@/lib/supabase/projects';
-import { fetchProjectMessages } from '@/lib/messages';
+import { fetchProjectMessages, fetchProjectReplies } from '@/lib/messages';
 import { mapDbStepToComponentIdx, mapComponentIdxToDbStep } from '@/lib/stepMapping';
 
 // ─── 데이터 복원용 상수 ──────────────────────────────────────────────────────
@@ -113,22 +115,34 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
   const [brief,            setBrief]            = React.useState<BriefData | null>(null);
   const [initialStep,      setInitialStep]      = React.useState(0);
   const [initialMessages,  setInitialMessages]  = React.useState<SentMessage[]>([]);
+  const [initialReplies,   setInitialReplies]   = React.useState<SentMessage[]>([]);
 
   React.useEffect(() => {
     Promise.all([
       getProject(projectId),
       fetchProjectMessages(projectId),
+      fetchProjectReplies(projectId),
     ])
-      .then(([p, messages]) => {
+      .then(([p, messages, replies]) => {
         if (!p) { setNotFound(true); setPageLoading(false); return; }
 
         // ── BriefData 복원 ────────────────────────────────────────────────
         const content = p.brief_content as Record<string, unknown>;
         const prefs   = p.style_preferences as Record<string, unknown>;
         const snap    = prefs?.form_snapshot as BriefForm | undefined;
+        const pooledPersona  = p.persona_id ? getPersonaById(p.persona_id) : undefined;
+        const persona        = pooledPersona ?? (content.persona as Persona);
+        const pooledProject  = p.project_template_id
+          ? getProjectById(p.project_template_id)
+          : undefined;
+        const project        = pooledProject
+          ? { name: pooledProject.name, purpose: pooledProject.purpose }
+          : (content.project as BriefData['project']);
         const reconstructedBrief: BriefData = {
-          persona:      content.persona      as BriefData['persona'],
-          project:      content.project      as BriefData['project'],
+          persona,
+          persona_id:          p.persona_id          ?? undefined,
+          project,
+          project_template_id: p.project_template_id ?? undefined,
           dates:        content.dates        as BriefData['dates'],
           target:       content.target       as BriefData['target'],
           emotion:      String(content.emotion      ?? ''),
@@ -146,6 +160,7 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
         setBrief(reconstructedBrief);
         setInitialStep(mapDbStepToComponentIdx(p.current_step));
         setInitialMessages(messages);
+        setInitialReplies(replies);
         setPageLoading(false);
       })
       .catch((err) => {
@@ -244,6 +259,7 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
           onFinish={() => router.push('/dashboard')}
           projectId={projectId}
           initialMessages={initialMessages}
+          initialReplies={initialReplies}
           onStepChange={handleStepChange}
         />
       </div>

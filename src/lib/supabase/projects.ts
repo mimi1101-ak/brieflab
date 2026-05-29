@@ -58,6 +58,8 @@ export async function insertDraftProject(
         styleLabels: brief.styleLabels,
         emailBody,
       },
+      persona_id:          brief.persona_id          ?? null,
+      project_template_id: brief.project_template_id ?? null,
       status: 'draft',
       current_step: 'receive',
       step_index: 0,

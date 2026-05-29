@@ -1,3 +1,9 @@
+import type { Persona, PersonaVoice, ClientType } from './personaPool';
+import type { ProjectTemplate, DesignField } from './projectPool';
+
+export type { Persona, PersonaVoice, ClientType };
+export type { ProjectTemplate, DesignField };
+
 export interface BriefForm {
   field: string | null;
   difficulty: string | null;
@@ -9,17 +15,11 @@ export interface BriefForm {
   avoid: string;
 }
 
-export interface Persona {
-  company: string;
-  name: string;
-  title: string;
-  email: string;
-  phone: string;
-}
-
 export interface BriefData {
   persona: Persona;
+  persona_id?: string;
   project: { name: string; purpose: string };
+  project_template_id?: string;
   dates: { kickoff: string; mid: string; final: string };
   target: { age: string; gender: string; lifestyle: string };
   emotion: string;
