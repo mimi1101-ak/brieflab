@@ -63,6 +63,7 @@ export async function insertUserMessage(
       type: 'qna_question',
       subject,
       body,
+      content: body,   // DB에 body·content 컬럼이 모두 NOT NULL
     })
     .select('id, project_id, subject, body, created_at')
     .single();

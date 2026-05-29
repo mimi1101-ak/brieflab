@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
         type:    'qna_answer',
         subject: replySubject,
         body:    replyBody,
+        content: replyBody,  // DB에 body·content 컬럼이 모두 NOT NULL
       })
       .select('id')
       .single();

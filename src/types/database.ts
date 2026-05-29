@@ -44,6 +44,7 @@ export interface MessageRow {
   type: MessageType
   subject: string
   body: string
+  content: string          // DB에 body와 content 두 컬럼이 모두 NOT NULL로 존재
   created_at: string       // ISO timestamptz string
 }
 
