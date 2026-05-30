@@ -8,7 +8,7 @@ import { BriefData, BriefForm, SentMessage, Persona } from '@/components/brief/t
 import { getPersonaById } from '@/components/brief/personaPool';
 import { getProjectById } from '@/components/brief/projectPool';
 import { getProject, updateProjectStep } from '@/lib/supabase/projects';
-import { fetchProjectMessages, fetchProjectReplies } from '@/lib/messages';
+import { fetchProjectMessages, fetchProjectReplies, fetchProjectDraftFeedback } from '@/lib/messages';
 import { mapDbStepToComponentIdx, mapComponentIdxToDbStep } from '@/lib/stepMapping';
 
 // ─── 데이터 복원용 상수 ──────────────────────────────────────────────────────
@@ -114,16 +114,18 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
   const [title,            setTitle]            = React.useState('');
   const [brief,            setBrief]            = React.useState<BriefData | null>(null);
   const [initialStep,      setInitialStep]      = React.useState(0);
-  const [initialMessages,  setInitialMessages]  = React.useState<SentMessage[]>([]);
-  const [initialReplies,   setInitialReplies]   = React.useState<SentMessage[]>([]);
+  const [initialMessages,      setInitialMessages]      = React.useState<SentMessage[]>([]);
+  const [initialReplies,       setInitialReplies]       = React.useState<SentMessage[]>([]);
+  const [initialDraftFeedback, setInitialDraftFeedback] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     Promise.all([
       getProject(projectId),
       fetchProjectMessages(projectId),
       fetchProjectReplies(projectId),
+      fetchProjectDraftFeedback(projectId),
     ])
-      .then(([p, messages, replies]) => {
+      .then(([p, messages, replies, draftFeedback]) => {
         if (!p) { setNotFound(true); setPageLoading(false); return; }
 
         // ── BriefData 복원 ────────────────────────────────────────────────
@@ -161,6 +163,7 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
         setInitialStep(mapDbStepToComponentIdx(p.current_step));
         setInitialMessages(messages);
         setInitialReplies(replies);
+        setInitialDraftFeedback(draftFeedback);
         setPageLoading(false);
       })
       .catch((err) => {
@@ -260,6 +263,7 @@ export default function ProjectWorkspaceClient({ projectId }: Props) {
           projectId={projectId}
           initialMessages={initialMessages}
           initialReplies={initialReplies}
+          initialDraftFeedback={initialDraftFeedback}
           onStepChange={handleStepChange}
         />
       </div>

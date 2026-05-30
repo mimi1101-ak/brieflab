@@ -46,6 +46,26 @@ export async function fetchProjectReplies(projectId: string): Promise<SentMessag
 }
 
 /**
+ * 가장 최근 시안 피드백(draft_feedback) 본문을 가져온다.
+ * 없으면 null 반환.
+ */
+export async function fetchProjectDraftFeedback(projectId: string): Promise<string | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('messages')
+    .select('body, content')
+    .eq('project_id', projectId)
+    .eq('sender', 'assistant')
+    .eq('type', 'draft_feedback')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return (data.body || data.content) ?? null;
+}
+
+/**
  * 사용자가 보낸 QnA 메시지를 messages 테이블에 INSERT한다.
  * 에러 시 null 반환 (throw 하지 않음).
  */

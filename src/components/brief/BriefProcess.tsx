@@ -18,21 +18,75 @@ const STEPS = [
 const pBtn = { background: 'var(--indigo-600)', border: 'none', color: '#fff', fontSize: 14, fontWeight: 700, padding: '12px 20px', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: 'var(--shadow-indigo)', whiteSpace: 'nowrap' } as React.CSSProperties;
 const sBtn = { background: 'var(--white)', border: '1px solid var(--ink-200)', color: 'var(--ink-700)', fontSize: 14, fontWeight: 600, padding: '12px 18px', borderRadius: 'var(--radius)', cursor: 'pointer', whiteSpace: 'nowrap' } as React.CSSProperties;
 
-const ProcessRail = ({ activeIdx }: { activeIdx: number }) => (
+// ── 완료 단계 보기 배너 ───────────────────────────────────────────────────────
+const ReadOnlyBanner = ({ onReturn }: { onReturn: () => void }) => (
+  <div style={{ background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--radius)', padding: '10px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div style={{ fontSize: 13, color: 'var(--indigo-700)', fontWeight: 500 }}>
+      ✅ 완료된 단계예요. 내용을 확인할 수 있지만 수정은 현재 단계에서만 가능합니다.
+    </div>
+    <button
+      type="button"
+      onClick={onReturn}
+      style={{ background: 'var(--indigo-600)', border: 'none', color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '6px 14px', borderRadius: 'var(--radius)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+    >
+      → 현재 진행 중인 단계로
+    </button>
+  </div>
+);
+
+// ── ProcessRail ───────────────────────────────────────────────────────────────
+const ProcessRail = ({
+  activeIdx,
+  viewingIdx,
+  onStepClick,
+}: {
+  activeIdx:   number;
+  viewingIdx:  number;
+  onStepClick: (idx: number) => void;
+}) => (
   <div style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: '20px 22px', boxShadow: 'var(--shadow-xs)' }}>
     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: 'var(--ink-500)', textTransform: 'uppercase', marginBottom: 14 }}>실무 워크플로우</div>
     {STEPS.map((step, i) => {
-      const status = i < activeIdx ? 'done' : i === activeIdx ? 'active' : 'pending';
+      const status    = i < activeIdx ? 'done' : i === activeIdx ? 'active' : 'pending';
+      const isViewing = i === viewingIdx;
+      const clickable = i <= activeIdx;
       return (
-        <div key={step.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', position: 'relative', paddingBottom: i === STEPS.length - 1 ? 0 : 14 }}>
+        <div
+          key={step.id}
+          onClick={() => clickable && onStepClick(i)}
+          style={{
+            display: 'flex', gap: 12, alignItems: 'flex-start', position: 'relative',
+            paddingBottom: i === STEPS.length - 1 ? 0 : 14,
+            cursor: clickable ? 'pointer' : 'default',
+            borderRadius: 8,
+            background: isViewing ? 'rgba(99,102,241,0.06)' : 'transparent',
+            margin: '0 -6px',
+            padding: `6px 6px ${i === STEPS.length - 1 ? 6 : 14}px`,
+            transition: 'background 150ms ease',
+          }}
+        >
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 999, background: status === 'done' ? 'var(--success)' : status === 'active' ? 'var(--indigo-600)' : 'var(--ink-100)', color: status === 'pending' ? 'var(--ink-500)' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0, boxShadow: status === 'active' ? '0 0 0 4px rgba(79,70,229,0.18)' : 'none', transition: 'all 200ms ease' }}>
+            <div style={{
+              width: 28, height: 28, borderRadius: 999, flexShrink: 0, transition: 'all 200ms ease',
+              background: status === 'done' ? 'var(--success)' : status === 'active' ? 'var(--indigo-600)' : 'var(--ink-100)',
+              color: status === 'pending' ? 'var(--ink-500)' : '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700,
+              boxShadow: isViewing && i !== activeIdx
+                ? '0 0 0 3px rgba(99,102,241,0.35)'
+                : status === 'active'
+                ? '0 0 0 4px rgba(79,70,229,0.18)'
+                : 'none',
+            }}>
               {status === 'done' ? <Icon.Check style={{ width: 13, height: 13 }} /> : i + 1}
             </div>
-            {i < STEPS.length - 1 && <div style={{ width: 2, flex: 1, minHeight: 24, background: i < activeIdx ? 'var(--success)' : 'var(--ink-200)', marginTop: 4 }} />}
+            {i < STEPS.length - 1 && (
+              <div style={{ width: 2, flex: 1, minHeight: 24, background: i < activeIdx ? 'var(--success)' : 'var(--ink-200)', marginTop: 4 }} />
+            )}
           </div>
           <div style={{ paddingTop: 4, paddingBottom: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: status === 'pending' ? 500 : 700, color: status === 'pending' ? 'var(--ink-500)' : 'var(--ink-900)', whiteSpace: 'nowrap' }}>{step.label}</div>
+            <div style={{ fontSize: 14, fontWeight: status === 'pending' ? 500 : 700, color: status === 'pending' ? 'var(--ink-500)' : 'var(--ink-900)', whiteSpace: 'nowrap' }}>
+              {step.label}
+            </div>
             <div style={{ fontSize: 12, color: 'var(--ink-500)', marginTop: 2 }}>{step.sub}</div>
           </div>
         </div>
@@ -41,8 +95,20 @@ const ProcessRail = ({ activeIdx }: { activeIdx: number }) => (
   </div>
 );
 
-const StepReceive = ({ brief, onNext }: { brief: BriefData; onNext: () => void }) => (
+// ── StepReceive ───────────────────────────────────────────────────────────────
+const StepReceive = ({
+  brief,
+  onNext,
+  readOnly = false,
+  onReturnToActive,
+}: {
+  brief:             BriefData;
+  onNext:            () => void;
+  readOnly?:         boolean;
+  onReturnToActive?: () => void;
+}) => (
   <div>
+    {readOnly && onReturnToActive && <ReadOnlyBanner onReturn={onReturnToActive} />}
     <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>브리프를 받았습니다</h2>
     <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>클라이언트가 보낸 브리프를 확인하고, 작업을 수락할지 결정해주세요.</p>
     <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', padding: '18px 20px', marginBottom: 20 }}>
@@ -57,31 +123,35 @@ const StepReceive = ({ brief, onNext }: { brief: BriefData; onNext: () => void }
         {`안녕하세요, ${brief.persona.company}의 ${brief.persona.name}입니다.\n${brief.project.purpose}\n\n프로젝트명: ${brief.project.name}\n제작 기간: ${brief.durationLabel}\n예산: ${brief.budget}\n\n자세한 내용은 첨부 브리프를 참고 부탁드립니다.`}
       </div>
     </div>
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-      <button type="button" style={sBtn}>거절</button>
-      <button type="button" onClick={onNext} style={pBtn}><Icon.Check style={{ width: 14, height: 14 }} /> 작업 수락하기</button>
-    </div>
+    {!readOnly && (
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <button type="button" style={sBtn}>거절</button>
+        <button type="button" onClick={onNext} style={pBtn}><Icon.Check style={{ width: 14, height: 14 }} /> 작업 수락하기</button>
+      </div>
+    )}
   </div>
 );
 
-// ─── StepQna ─────────────────────────────────────────────────────────────────
-
+// ── StepQna ───────────────────────────────────────────────────────────────────
 const StepQna = ({
   brief,
   onNext,
   projectId,
   initialMessages = [],
   initialReplies  = [],
+  readOnly = false,
+  onReturnToActive,
 }: {
-  brief:            BriefData;
-  onNext:           () => void;
-  projectId?:       string;
-  initialMessages?: SentMessage[];
-  initialReplies?:  SentMessage[];   // DB에서 복원한 assistant 메시지 목록
+  brief:             BriefData;
+  onNext:            () => void;
+  projectId?:        string;
+  initialMessages?:  SentMessage[];
+  initialReplies?:   SentMessage[];
+  readOnly?:         boolean;
+  onReturnToActive?: () => void;
 }) => {
   const [sentMessages,    setSentMessages]    = React.useState<SentMessage[]>(initialMessages);
 
-  // replies: key = 보낸 메일 id (tempId 또는 real id), value = 받은 답장
   const [replies, setReplies] = React.useState<Record<string, ReplyEntry>>(() => {
     const init: Record<string, ReplyEntry> = {};
     initialMessages.forEach((msg, i) => {
@@ -113,7 +183,6 @@ const StepQna = ({
     `최종 산출물의 활용 채널이 구체적으로 어디인가요?`,
   ];
 
-  // 멀티라인 placeholder
   const PLACEHOLDER_BODY = [
     `안녕하세요, ${brief.persona.company} ${brief.persona.name} ${brief.persona.title}님.`,
     '',
@@ -155,7 +224,6 @@ const StepQna = ({
     const now      = new Date().toISOString();
     const tempId   = `local_${Date.now()}`;
 
-    // 전송 전 이전 대화 캡처 (user + assistant 교차)
     const history: { role: 'user' | 'assistant'; content: string }[] = [];
     sentMessages.forEach((m) => {
       history.push({ role: 'user', content: m.body });
@@ -164,7 +232,6 @@ const StepQna = ({
       }
     });
 
-    // 1. 즉시 UI 반영 (낙관적 업데이트) + 로딩 플래그
     setSentMessages((prev) => [
       ...prev,
       { id: tempId, project_id: projectId ?? '', subject, body: bodyText, created_at: now },
@@ -175,7 +242,6 @@ const StepQna = ({
     setLoadingReplyFor(tempId);
     setTimeout(() => { if (textareaRef.current) textareaRef.current.style.height = '240px'; }, 0);
 
-    // 2. DB INSERT — user 메시지 (fire & forget, UI 블로킹 없음)
     if (projectId) {
       insertUserMessage(projectId, subject, bodyText).then((saved) => {
         if (!saved) {
@@ -185,7 +251,6 @@ const StepQna = ({
       });
     }
 
-    // 3. AI 답장 요청
     try {
       const res = await fetch('/api/qna-reply', {
         method:  'POST',
@@ -222,11 +287,9 @@ const StepQna = ({
     }
   };
 
-  // 기존 메시지에 누락된 답장을 다시 받는 핸들러
   const handleRetryReply = async (msg: SentMessage) => {
     setLoadingReplyFor(msg.id);
 
-    // 이 메시지 이전까지의 대화 기록 구성
     const history: { role: 'user' | 'assistant'; content: string }[] = [];
     for (const m of sentMessages) {
       if (m.id === msg.id) break;
@@ -285,34 +348,28 @@ const StepQna = ({
         @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
       `}</style>
 
-      {/* 저장 실패 토스트 */}
+      {readOnly && onReturnToActive && <ReadOnlyBanner onReturn={onReturnToActive} />}
+
       {saveError && (
         <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
           ⚠️ 저장에 실패했습니다. 새로고침 후 다시 시도해주세요.
         </div>
       )}
-
-      {/* 답장 실패 토스트 */}
       {replyError && (
         <div style={{ position: 'fixed', bottom: saveError ? 68 : 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
           ⚠️ 클라이언트 답장을 받지 못했어요. 잠시 후 다시 시도해주세요.
         </div>
       )}
 
-      {/* 헤더 */}
       <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>질의응답</h2>
       <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 14px' }}>브리프에서 모호한 부분을 클라이언트에게 질문해보세요.</p>
 
-      {/* 횟수 안내 배너 */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 999, padding: '6px 14px', marginBottom: 22, fontSize: 13, fontWeight: 600, color: 'var(--indigo-700)' }}>
         💌 최대 3회까지 메일을 주고받을 수 있어요 ({sentCount}/3)
       </div>
 
-      {/* 보낸 메일 + 답장 누적 목록 */}
       {sentMessages.map((msg) => (
         <React.Fragment key={msg.id}>
-
-          {/* 보낸 메일 카드 */}
           <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', marginBottom: (replies[msg.id] || loadingReplyFor === msg.id) ? 6 : 14, overflow: 'hidden', animation: 'fadeSlideIn 300ms ease' }}>
             <div style={{ padding: '11px 16px 9px', borderBottom: '1px solid var(--ink-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
               <div style={{ fontSize: 13.5, fontWeight: 700, color: 'var(--ink-900)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{msg.subject}</div>
@@ -323,7 +380,6 @@ const StepQna = ({
             </div>
           </div>
 
-          {/* 로딩 표시 (이 메일의 답장 대기 중일 때만) */}
           {loadingReplyFor === msg.id && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', marginBottom: 16, fontSize: 13, color: 'var(--ink-500)', background: 'var(--ink-50)', border: '1px dashed var(--ink-300)', borderRadius: 'var(--radius)' }}>
               <div style={{ width: 12, height: 12, borderRadius: '50%', border: '2px solid var(--ink-200)', borderTopColor: 'var(--indigo-500)', animation: 'spin 1.0s linear infinite', flexShrink: 0 }} />
@@ -331,7 +387,6 @@ const StepQna = ({
             </div>
           )}
 
-          {/* 답장 카드 */}
           {replies[msg.id] && (
             <div style={{ marginBottom: 22, borderLeft: '2px solid var(--indigo-300)', background: 'var(--indigo-50)', borderRadius: '0 var(--radius) var(--radius) 0', overflow: 'hidden', animation: 'fadeSlideIn 400ms ease' }}>
               <div style={{ padding: '10px 16px 8px', borderBottom: '1px solid rgba(99,102,241,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
@@ -348,8 +403,7 @@ const StepQna = ({
             </div>
           )}
 
-          {/* 답장 재요청 버튼 — 답장이 없고 로딩 중이 아닐 때 */}
-          {!replies[msg.id] && loadingReplyFor !== msg.id && !loadingReplyFor && (
+          {!readOnly && !replies[msg.id] && loadingReplyFor !== msg.id && !loadingReplyFor && (
             <div style={{ marginBottom: 22, display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 type="button"
@@ -360,101 +414,89 @@ const StepQna = ({
               </button>
             </div>
           )}
-
         </React.Fragment>
       ))}
 
-      {/* ── 메일 작성 영역 (3회 미만) ────────────────────────────────── */}
-      {canSendMore ? (
-        <div style={{ border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: 'var(--white)' }}>
-
-          {/* 받는 사람 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--ink-100)' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-400)', flexShrink: 0, width: 52 }}>받는 사람</span>
-            <span style={{ fontSize: 13.5, color: 'var(--ink-600)' }}>
-              {brief.persona.name} {brief.persona.title} ({brief.persona.email})
-            </span>
-          </div>
-
-          {/* 제목 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--ink-100)' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-400)', flexShrink: 0, width: 52 }}>제목</span>
-            <input
-              value={subjectInput}
-              onChange={(e) => setSubjectInput(e.target.value)}
-              placeholder={`예: ${brief.project.name} 관련 문의드립니다`}
-              style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13.5, color: 'var(--ink-900)', background: 'transparent', fontFamily: 'inherit' }}
-            />
-          </div>
-
-          {/* 본문 — 커스텀 멀티라인 플레이스홀더 오버레이 */}
-          <div style={{ position: 'relative', borderBottom: '1px solid var(--ink-100)' }}>
-            {!bodyInput && (
-              <div
-                aria-hidden
-                style={{ position: 'absolute', inset: 0, padding: '14px 16px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-400)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
-              >
-                {PLACEHOLDER_BODY}
-              </div>
-            )}
-            <textarea
-              ref={textareaRef}
-              value={bodyInput}
-              onChange={(e) => { setBodyInput(e.target.value); autoResize(e.target); }}
-              style={{ width: '100%', minHeight: 240, padding: '14px 16px', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', fontSize: 14, lineHeight: 1.7, fontFamily: 'inherit', color: bodyInput ? 'var(--ink-900)' : 'transparent', caretColor: 'var(--ink-900)', background: 'transparent', display: 'block', boxSizing: 'border-box' }}
-            />
-          </div>
-
-          {/* 추천 질문 칩 */}
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ink-100)', background: 'var(--ink-50)' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-600)', marginBottom: 8 }}>
-              📌 추천 질문{' '}
-              <span style={{ fontWeight: 400, color: 'var(--ink-400)' }}>(클릭하면 본문에 추가)</span>
+      {/* 메일 작성 영역 — readOnly가 아닐 때만 */}
+      {!readOnly && (
+        canSendMore ? (
+          <div style={{ border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', background: 'var(--white)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--ink-100)' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-400)', flexShrink: 0, width: 52 }}>받는 사람</span>
+              <span style={{ fontSize: 13.5, color: 'var(--ink-600)' }}>
+                {brief.persona.name} {brief.persona.title} ({brief.persona.email})
+              </span>
             </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-              {suggested.map((q, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => addChip(i)}
-                  style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, color: 'var(--ink-700)', cursor: 'pointer', lineHeight: 1.5, whiteSpace: 'nowrap', transition: 'opacity 150ms ease', opacity: usedChips.has(i) ? 0.45 : 1 }}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 16px', borderBottom: '1px solid var(--ink-100)' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-400)', flexShrink: 0, width: 52 }}>제목</span>
+              <input
+                value={subjectInput}
+                onChange={(e) => setSubjectInput(e.target.value)}
+                placeholder={`예: ${brief.project.name} 관련 문의드립니다`}
+                style={{ flex: 1, border: 'none', outline: 'none', fontSize: 13.5, color: 'var(--ink-900)', background: 'transparent', fontFamily: 'inherit' }}
+              />
+            </div>
+            <div style={{ position: 'relative', borderBottom: '1px solid var(--ink-100)' }}>
+              {!bodyInput && (
+                <div
+                  aria-hidden
+                  style={{ position: 'absolute', inset: 0, padding: '14px 16px', fontSize: 14, lineHeight: 1.7, color: 'var(--ink-400)', pointerEvents: 'none', userSelect: 'none', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                 >
-                  {q}
-                </button>
-              ))}
+                  {PLACEHOLDER_BODY}
+                </div>
+              )}
+              <textarea
+                ref={textareaRef}
+                value={bodyInput}
+                onChange={(e) => { setBodyInput(e.target.value); autoResize(e.target); }}
+                style={{ width: '100%', minHeight: 240, padding: '14px 16px', border: 'none', outline: 'none', resize: 'none', overflow: 'hidden', fontSize: 14, lineHeight: 1.7, fontFamily: 'inherit', color: bodyInput ? 'var(--ink-900)' : 'transparent', caretColor: 'var(--ink-900)', background: 'transparent', display: 'block', boxSizing: 'border-box' }}
+              />
+            </div>
+            <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--ink-100)', background: 'var(--ink-50)' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--ink-600)', marginBottom: 8 }}>
+                📌 추천 질문{' '}
+                <span style={{ fontWeight: 400, color: 'var(--ink-400)' }}>(클릭하면 본문에 추가)</span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {suggested.map((q, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => addChip(i)}
+                    style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 999, padding: '5px 12px', fontSize: 12.5, color: 'var(--ink-700)', cursor: 'pointer', lineHeight: 1.5, whiteSpace: 'nowrap', transition: 'opacity 150ms ease', opacity: usedChips.has(i) ? 0.45 : 1 }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: charColor }}>
+                {charCount}자 <span style={{ color: 'var(--ink-300)' }}>/</span> 권장 200~400자
+              </div>
+              <button
+                type="button"
+                onClick={() => { handleSend(); }}
+                disabled={!bodyInput.trim() || !!loadingReplyFor}
+                style={{ ...pBtn, opacity: (bodyInput.trim() && !loadingReplyFor) ? 1 : 0.45, cursor: (bodyInput.trim() && !loadingReplyFor) ? 'pointer' : 'not-allowed' }}
+              >
+                📨 메일 보내기
+              </button>
             </div>
           </div>
-
-          {/* 하단: 글자 수 + 보내기 버튼 */}
-          <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, color: charColor }}>
-              {charCount}자 <span style={{ color: 'var(--ink-300)' }}>/</span> 권장 200~400자
+        ) : (
+          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 'var(--radius)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#166534' }}>
+              ✅ 질의응답을 마쳤어요. 다음 단계인 &apos;시안 제출&apos;로 넘어가세요.
             </div>
-            <button
-              type="button"
-              onClick={() => { handleSend(); }}
-              disabled={!bodyInput.trim() || !!loadingReplyFor}
-              style={{ ...pBtn, opacity: (bodyInput.trim() && !loadingReplyFor) ? 1 : 0.45, cursor: (bodyInput.trim() && !loadingReplyFor) ? 'pointer' : 'not-allowed' }}
-            >
-              📨 메일 보내기
+            <button type="button" onClick={onNext} style={pBtn}>
+              다음 단계로 <Icon.ChevronRight style={{ width: 14, height: 14 }} />
             </button>
           </div>
-        </div>
-
-      ) : (
-        /* 3회 완료 안내 */
-        <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 'var(--radius)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: '#166534' }}>
-            ✅ 질의응답을 마쳤어요. 다음 단계인 &apos;시안 제출&apos;로 넘어가세요.
-          </div>
-          <button type="button" onClick={onNext} style={pBtn}>
-            다음 단계로 <Icon.ChevronRight style={{ width: 14, height: 14 }} />
-          </button>
-        </div>
+        )
       )}
 
-      {/* 조기 종료 버튼 — 1회 이상 보냈고 3회 미만이며 답장 대기 중이 아닐 때 */}
-      {sentCount >= 1 && canSendMore && !loadingReplyFor && (
+      {!readOnly && sentCount >= 1 && canSendMore && !loadingReplyFor && (
         <div style={{ textAlign: 'right', marginTop: 14 }}>
           <button type="button" onClick={onNext} style={{ ...sBtn, fontSize: 13, padding: '8px 14px', color: 'var(--ink-500)' }}>
             질의응답 끝내기 →
@@ -465,26 +507,314 @@ const StepQna = ({
   );
 };
 
-const StepDraft = ({ onNext }: { onNext: () => void }) => (
-  <div>
-    <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>시안 제출</h2>
-    <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>작업한 시안을 업로드해 클라이언트에게 제출해주세요. 2~3안 제안이 일반적이에요.</p>
-    <div style={{ border: '2px dashed var(--ink-300)', borderRadius: 'var(--radius-lg)', padding: '40px 24px', textAlign: 'center', background: 'var(--ink-50)', marginBottom: 18 }}>
-      <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--white)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-xs)', color: 'var(--indigo-600)' }}>
-        <Icon.Upload style={{ width: 22, height: 22 }} />
-      </div>
-      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>시안 파일을 끌어다 놓거나 클릭해서 업로드</div>
-      <div style={{ fontSize: 12, color: 'var(--ink-500)' }}>JPG, PNG, PDF, Figma 링크 지원</div>
-    </div>
-    <textarea placeholder="시안 설명 (디자인 의도, 차별점 등)" style={{ width: '100%', minHeight: 90, padding: '12px 14px', border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 18 }} />
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-      <button type="button" onClick={onNext} style={pBtn}>시안 제출하기 <Icon.Wand style={{ width: 14, height: 14 }} /></button>
-    </div>
-  </div>
-);
+// ── StepDraft helpers ─────────────────────────────────────────────────────────
+const toBase64 = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
-const StepFeedback = ({ brief, onNext }: { brief: BriefData; onNext: () => void }) => (
+// ── StepDraft ─────────────────────────────────────────────────────────────────
+const StepDraft = ({
+  onNext,
+  brief,
+  projectId,
+  readOnly = false,
+  onReturnToActive,
+  initialFeedback = null,
+}: {
+  onNext:             () => void;
+  brief:              BriefData;
+  projectId?:         string;
+  readOnly?:          boolean;
+  onReturnToActive?:  () => void;
+  initialFeedback?:   string | null;
+}) => {
+  const [selectedFile,  setSelectedFile]  = React.useState<File | null>(null);
+  const [previewUrl,    setPreviewUrl]    = React.useState<string | null>(null);
+  const [description,   setDescription]  = React.useState('');
+  const [isLoading,     setIsLoading]    = React.useState(false);
+  const [feedback,      setFeedback]     = React.useState<string | null>(initialFeedback);
+  const [isConfirmed,   setIsConfirmed]  = React.useState<boolean | null>(
+    initialFeedback !== null ? initialFeedback.includes('[컨펌]') : null,
+  );
+  const [sizeError,     setSizeError]    = React.useState(false);
+  const [apiError,      setApiError]     = React.useState(false);
+  const [isDragging,    setIsDragging]   = React.useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      setSizeError(true);
+      setTimeout(() => setSizeError(false), 4000);
+      return;
+    }
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setFeedback(null);
+    setIsConfirmed(null);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && (file.type === 'image/png' || file.type === 'image/jpeg' || file.type === 'image/webp')) {
+      handleFile(file);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewUrl(null);
+    setFeedback(null);
+    setIsConfirmed(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedFile || isLoading) return;
+    setIsLoading(true);
+    setApiError(false);
+
+    try {
+      const base64 = await toBase64(selectedFile);
+      const mediaType = selectedFile.type as 'image/jpeg' | 'image/png' | 'image/webp';
+
+      const fieldMap: Record<string, string> = {
+        '상세페이지': 'detail', '웹사이트': 'web', '브랜딩': 'brand', '앱': 'app',
+      };
+
+      const res = await fetch('/api/draft-feedback', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id:   projectId ?? '',
+          image_base64: base64,
+          media_type:   mediaType,
+          description,
+          persona_id:   brief.persona_id ?? '',
+          brief_summary: {
+            project_name:    brief.project.name,
+            project_purpose: brief.project.purpose,
+            field:           fieldMap[brief.fieldLabel] ?? 'web',
+            emotion:         brief.emotion,
+            target:          typeof brief.target === 'string' ? brief.target : JSON.stringify(brief.target),
+            deliverable:     brief.deliverable,
+          },
+        }),
+      });
+
+      const data = await res.json() as { feedback?: string; is_confirmed?: boolean; error?: string };
+
+      if (res.ok && data.feedback) {
+        setFeedback(data.feedback);
+        setIsConfirmed(data.is_confirmed ?? false);
+      } else {
+        setApiError(true);
+        setTimeout(() => setApiError(false), 5000);
+      }
+    } catch {
+      setApiError(true);
+      setTimeout(() => setApiError(false), 5000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <style>{`
+        @keyframes fadeSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        @keyframes toastIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+      `}</style>
+
+      {readOnly && onReturnToActive && <ReadOnlyBanner onReturn={onReturnToActive} />}
+
+      {sizeError && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          ⚠️ 10MB 이하 이미지만 업로드 가능합니다
+        </div>
+      )}
+      {apiError && (
+        <div style={{ position: 'fixed', bottom: sizeError ? 68 : 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          ⚠️ 피드백을 받지 못했어요. 잠시 후 다시 시도해주세요.
+        </div>
+      )}
+
+      <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>시안 제출</h2>
+      <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>
+        작업한 시안을 업로드해 클라이언트에게 제출해주세요. 2~3안 제안이 일반적이에요.
+      </p>
+
+      {!feedback && !readOnly && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            style={{ display: 'none' }}
+            onChange={handleInputChange}
+            disabled={readOnly}
+          />
+
+          {previewUrl ? (
+            <div style={{ position: 'relative', marginBottom: 18, borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1.5px solid var(--ink-200)', background: 'var(--ink-50)' }}>
+              <img src={previewUrl} alt="시안 미리보기" style={{ width: '100%', maxHeight: 360, objectFit: 'contain', display: 'block' }} />
+              <button
+                type="button"
+                onClick={removeFile}
+                style={{ position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 999, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}
+                aria-label="이미지 제거"
+              >
+                ×
+              </button>
+              <div style={{ padding: '8px 14px', fontSize: 12, color: 'var(--ink-500)' }}>
+                {selectedFile?.name} · {selectedFile ? (selectedFile.size / 1024 / 1024).toFixed(1) : 0}MB
+              </div>
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              style={{ border: `2px dashed ${isDragging ? 'var(--indigo-400)' : 'var(--ink-300)'}`, borderRadius: 'var(--radius-lg)', padding: '44px 24px', textAlign: 'center', background: isDragging ? 'var(--indigo-50)' : 'var(--ink-50)', marginBottom: 18, cursor: 'pointer', transition: 'all 150ms ease' }}
+            >
+              <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--white)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-xs)', color: 'var(--indigo-600)' }}>
+                <Icon.Upload style={{ width: 22, height: 22 }} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>
+                시안 이미지를 끌어다 놓거나 클릭해서 업로드
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--ink-500)' }}>PNG, JPG, WEBP · 최대 10MB</div>
+            </div>
+          )}
+
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value.slice(0, 300))}
+            placeholder="디자인 의도나 특이사항이 있다면 적어주세요 (선택)"
+            style={{ width: '100%', minHeight: 80, padding: '12px 14px', border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 8, boxSizing: 'border-box', color: 'var(--ink-900)' }}
+          />
+          <div style={{ fontSize: 12, color: 'var(--ink-400)', textAlign: 'right', marginBottom: 18 }}>
+            {description.length} / 300자
+          </div>
+
+          {isLoading && (
+            <div style={{ background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--radius)', padding: '14px 18px', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10, animation: 'fadeSlideIn 300ms ease' }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--indigo-200)', borderTopColor: 'var(--indigo-600)', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--indigo-800)' }}>클라이언트가 시안을 검토 중입니다...</div>
+                <div style={{ fontSize: 12, color: 'var(--indigo-600)', marginTop: 2 }}>시안 분석은 20~30초 정도 걸릴 수 있어요</div>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!selectedFile || isLoading}
+              style={{ ...pBtn, opacity: (selectedFile && !isLoading) ? 1 : 0.45, cursor: (selectedFile && !isLoading) ? 'pointer' : 'not-allowed' }}
+            >
+              📤 시안 제출하기
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* readOnly 상태에서 업로드 전이면 안내 메시지 */}
+      {readOnly && !feedback && (
+        <div style={{ background: 'var(--ink-50)', border: '1px dashed var(--ink-300)', borderRadius: 'var(--radius-lg)', padding: '40px 24px', textAlign: 'center', color: 'var(--ink-400)', fontSize: 14 }}>
+          이 단계는 아직 진행 내용이 없습니다.
+        </div>
+      )}
+
+      {feedback && (
+        <div style={{ animation: 'fadeSlideIn 400ms ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '6px 16px', borderRadius: 999, fontSize: 13, fontWeight: 700,
+              background: isConfirmed ? '#DCFCE7' : '#FEF3C7',
+              color:      isConfirmed ? '#166534' : '#92400E',
+              border:     `1px solid ${isConfirmed ? '#BBF7D0' : '#FDE68A'}`,
+            }}>
+              {isConfirmed ? '✅ 컨펌' : '🔄 수정 요청'}
+            </div>
+            <span style={{ fontSize: 13, color: 'var(--ink-500)' }}>
+              {brief.persona.name} 님의 시안 피드백
+            </span>
+          </div>
+
+          <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: '20px 22px', marginBottom: 20, fontSize: 14, color: 'var(--ink-800)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+            {feedback}
+          </div>
+
+          {previewUrl && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>제출한 시안</div>
+              <img src={previewUrl} alt="제출 시안" style={{ maxHeight: 180, borderRadius: 'var(--radius)', border: '1px solid var(--ink-200)', objectFit: 'contain', display: 'block' }} />
+            </div>
+          )}
+
+          {!readOnly && (
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              {isConfirmed ? (
+                <button type="button" onClick={onNext} style={pBtn}>
+                  다음 단계로 <Icon.ChevronRight style={{ width: 14, height: 14 }} />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => { setFeedback(null); setIsConfirmed(null); }}
+                    style={sBtn}
+                  >
+                    🔧 수정 후 다시 제출
+                  </button>
+                  <button type="button" onClick={onNext} style={{ ...sBtn, color: 'var(--ink-400)', fontSize: 13 }}>
+                    그래도 다음으로 →
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── StepFeedback ──────────────────────────────────────────────────────────────
+const StepFeedback = ({
+  brief,
+  onNext,
+  readOnly = false,
+  onReturnToActive,
+}: {
+  brief:             BriefData;
+  onNext:            () => void;
+  readOnly?:         boolean;
+  onReturnToActive?: () => void;
+}) => (
   <div>
+    {readOnly && onReturnToActive && <ReadOnlyBanner onReturn={onReturnToActive} />}
     <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>피드백 수용</h2>
     <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>클라이언트의 피드백을 검토하고 수정 방향을 결정해주세요.</p>
     <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 18 }}>
@@ -493,17 +823,20 @@ const StepFeedback = ({ brief, onNext }: { brief: BriefData; onNext: () => void 
     </div>
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
       {['컬러 톤 조정 (밝고 친근하게)', '메인 카피 위계 강화'].map((task, i) => (
-        <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 13.5, cursor: 'pointer' }}>
-          <input type="checkbox" defaultChecked style={{ accentColor: 'var(--indigo-600)' }} />{task}
+        <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 13.5, cursor: readOnly ? 'default' : 'pointer' }}>
+          <input type="checkbox" defaultChecked disabled={readOnly} style={{ accentColor: 'var(--indigo-600)' }} />{task}
         </label>
       ))}
     </div>
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-      <button type="button" onClick={onNext} style={pBtn}>수정 완료 <Icon.Check style={{ width: 14, height: 14 }} /></button>
-    </div>
+    {!readOnly && (
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <button type="button" onClick={onNext} style={pBtn}>수정 완료 <Icon.Check style={{ width: 14, height: 14 }} /></button>
+      </div>
+    )}
   </div>
 );
 
+// ── StepDeliver ───────────────────────────────────────────────────────────────
 const StepDeliver = ({ brief, onFinish }: { brief: BriefData; onFinish: () => void }) => (
   <div style={{ textAlign: 'center', padding: '20px 0' }}>
     <div style={{ width: 72, height: 72, borderRadius: 999, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', color: '#fff', margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-indigo)' }}>
@@ -528,6 +861,7 @@ const StepDeliver = ({ brief, onFinish }: { brief: BriefData; onFinish: () => vo
   </div>
 );
 
+// ── BriefProcess (메인) ────────────────────────────────────────────────────────
 export const BriefProcess = ({
   brief, onBack, onFinish,
   initialStepIdx = 0,
@@ -535,64 +869,103 @@ export const BriefProcess = ({
   projectId,
   initialMessages = [],
   initialReplies  = [],
+  initialDraftFeedback = null,
   onStepChange,
 }: {
-  brief:            BriefData;
-  onBack:           () => void;
-  onFinish:         () => void;
-  /** DB current_step を mapDbStepToComponentIdx() で変換した値を渡す */
-  initialStepIdx?:  number;
-  /** true のとき: 自前ヘッダー非表示・minHeight を auto に変更 */
-  embedded?:        boolean;
-  /** 워크스페이스 진입 시 주입되는 프로젝트 ID */
-  projectId?:       string;
-  /** DB에서 복원한 QnA 사용자 메시지 목록 */
-  initialMessages?: SentMessage[];
-  /** DB에서 복원한 QnA assistant 답장 목록 (순서 기준 initialMessages[i] 에 대응) */
-  initialReplies?:  SentMessage[];
-  /** 단계 전진 시 DB 업데이트를 수행하는 콜백 */
-  onStepChange?:    (newStepIdx: number) => Promise<void>;
+  brief:                 BriefData;
+  onBack:                () => void;
+  onFinish:              () => void;
+  initialStepIdx?:       number;
+  embedded?:             boolean;
+  projectId?:            string;
+  initialMessages?:      SentMessage[];
+  initialReplies?:       SentMessage[];
+  initialDraftFeedback?: string | null;
+  onStepChange?:         (newStepIdx: number) => Promise<void>;
 }) => {
-  const [stepIdx, setStepIdx] = React.useState(initialStepIdx);
+  // activeIdx: 실제 진행 위치 (DB 저장 기준)
+  // viewingIdx: 현재 화면에 표시 중인 단계 (사이드바 클릭으로 변경 가능)
+  const [activeIdx,  setActiveIdx]  = React.useState(initialStepIdx);
+  const [viewingIdx, setViewingIdx] = React.useState(initialStepIdx);
+
   const next = () => {
-    const newIdx = Math.min(stepIdx + 1, STEPS.length - 1);
-    setStepIdx(newIdx);
-    // 낙관적: UI 즉시 전진, DB 업데이트는 백그라운드
+    const newIdx = Math.min(activeIdx + 1, STEPS.length - 1);
+    setActiveIdx(newIdx);
+    setViewingIdx(newIdx);
     onStepChange?.(newIdx).catch((e) =>
       console.error('[BriefLab] onStepChange 실패:', e),
     );
   };
 
+  const handleStepClick = (idx: number) => {
+    if (idx <= activeIdx) {
+      setViewingIdx(idx);
+    }
+  };
+
+  const returnToActive = () => setViewingIdx(activeIdx);
+
+  const readOnly = viewingIdx < activeIdx;
+
   return (
     <div style={{ minHeight: embedded ? 'auto' : '100vh', display: 'flex', flexDirection: 'column', background: embedded ? 'transparent' : 'var(--ink-50)' }}>
       {!embedded && (
-      <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
-        <button type="button" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', background: 'transparent', border: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-700)', padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}>
-          <Icon.ChevronLeft style={{ width: 16, height: 16 }} /> 브리프로 돌아가기
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, whiteSpace: 'nowrap' }}>
-          <SDot done /><Dash /><SDot done /><Dash />
-          <SDot active num={3} label="프로세스 진행" />
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>{stepIdx + 1} / {STEPS.length} — {STEPS[stepIdx].label}</div>
-      </header>
+        <header style={{ background: 'rgba(255,255,255,0.85)', backdropFilter: 'saturate(180%) blur(8px)', borderBottom: '1px solid var(--ink-200)', padding: '14px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 20 }}>
+          <button type="button" onClick={onBack} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', background: 'transparent', border: 'none', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-700)', padding: '8px 12px', borderRadius: 8, cursor: 'pointer' }}>
+            <Icon.ChevronLeft style={{ width: 16, height: 16 }} /> 브리프로 돌아가기
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, whiteSpace: 'nowrap' }}>
+            <SDot done /><Dash /><SDot done /><Dash />
+            <SDot active num={3} label="프로세스 진행" />
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--ink-500)', whiteSpace: 'nowrap' }}>{viewingIdx + 1} / {STEPS.length} — {STEPS[viewingIdx].label}</div>
+        </header>
       )}
       <main style={{ flex: 1, maxWidth: 1100, width: '100%', margin: '0 auto', padding: embedded ? '24px 0' : '32px 36px', display: 'grid', gridTemplateColumns: '260px minmax(0,1fr)', gap: 24, alignItems: 'flex-start' }}>
-        <ProcessRail activeIdx={stepIdx} />
+        <ProcessRail
+          activeIdx={activeIdx}
+          viewingIdx={viewingIdx}
+          onStepClick={handleStepClick}
+        />
         <div style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: '32px 36px', boxShadow: 'var(--shadow-xs)', minHeight: 480 }}>
-          {stepIdx === 0 && <StepReceive brief={brief} onNext={next} />}
-          {stepIdx === 1 && (
+          {viewingIdx === 0 && (
+            <StepReceive
+              brief={brief}
+              onNext={next}
+              readOnly={readOnly}
+              onReturnToActive={returnToActive}
+            />
+          )}
+          {viewingIdx === 1 && (
             <StepQna
               brief={brief}
               onNext={next}
               projectId={projectId}
               initialMessages={initialMessages}
               initialReplies={initialReplies}
+              readOnly={readOnly}
+              onReturnToActive={returnToActive}
             />
           )}
-          {stepIdx === 2 && <StepDraft onNext={next} />}
-          {stepIdx === 3 && <StepFeedback brief={brief} onNext={next} />}
-          {stepIdx === 4 && <StepDeliver brief={brief} onFinish={onFinish} />}
+          {viewingIdx === 2 && (
+            <StepDraft
+              onNext={next}
+              brief={brief}
+              projectId={projectId}
+              readOnly={readOnly}
+              onReturnToActive={returnToActive}
+              initialFeedback={initialDraftFeedback}
+            />
+          )}
+          {viewingIdx === 3 && (
+            <StepFeedback
+              brief={brief}
+              onNext={next}
+              readOnly={readOnly}
+              onReturnToActive={returnToActive}
+            />
+          )}
+          {viewingIdx === 4 && <StepDeliver brief={brief} onFinish={onFinish} />}
         </div>
       </main>
     </div>
