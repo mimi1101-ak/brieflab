@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import * as Icon from '@/components/ui/Icon';
-import { getActiveProjects } from '@/lib/supabase/projects';
+import { getActiveProjects, getCompletedProjects } from '@/lib/supabase/projects';
 import type { ProjectRow } from '@/types/database';
 
 const PROCESS_STEPS = [
@@ -49,13 +49,26 @@ function toCardData(p: ProjectRow): ActiveCardData {
     client: persona?.company ?? '클라이언트',
   };
 }
-const COMPLETED_BRIEFS = [
-  { id: 11, title: '카페 메뉴판 리디자인', field: 'brand', difficulty: 'beginner', completedAt: '2026-04-28', score: 4.5 },
-  { id: 12, title: '뷰티 브랜드 인스타 광고 페이지', field: 'detail', difficulty: 'easy', completedAt: '2026-04-20', score: 4.2 },
-  { id: 13, title: '핀테크 앱 온보딩 화면 4종', field: 'app', difficulty: 'medium', completedAt: '2026-04-12', score: 4.8 },
-  { id: 14, title: '동네 빵집 SNS 홍보 페이지', field: 'detail', difficulty: 'beginner', completedAt: '2026-04-03', score: 4.0 },
-  { id: 15, title: '교육 스타트업 기업 소개 사이트', field: 'web', difficulty: 'medium', completedAt: '2026-03-25', score: 4.6 },
-];
+interface CompletedCardData {
+  id: string;
+  title: string;
+  field: string;
+  difficulty: string;
+  completedAt: string;
+  score: number | null;
+}
+
+function toCompletedCardData(p: ProjectRow): CompletedCardData {
+  return {
+    id: p.id,
+    title: p.title,
+    field: p.field,
+    difficulty: p.difficulty,
+    completedAt: p.updated_at.slice(0, 10),
+    score: null,
+  };
+}
+
 const MONTHLY_GOAL = 3;
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
@@ -302,7 +315,7 @@ const ScoreStars = ({ score }: { score: number }) => {
 };
 
 // ─── Completed brief card ─────────────────────────────────────────────────────
-const CompletedCard = ({ brief }: { brief: typeof COMPLETED_BRIEFS[0] }) => {
+const CompletedCard = ({ brief }: { brief: CompletedCardData }) => {
   const meta = FIELD_META[brief.field];
   const FieldIcon = meta.icon;
   return (
@@ -323,7 +336,7 @@ const CompletedCard = ({ brief }: { brief: typeof COMPLETED_BRIEFS[0] }) => {
         </div>
         <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink-900)', letterSpacing: '-0.01em' }}>{brief.title}</div>
       </div>
-      <ScoreStars score={brief.score} />
+      {brief.score !== null && <ScoreStars score={brief.score} />}
       <button style={{ background: 'transparent', border: '1px solid var(--ink-200)', color: 'var(--ink-700)', fontSize: 12.5, fontWeight: 600, padding: '7px 12px', borderRadius: 8, whiteSpace: 'nowrap', cursor: 'pointer' }}>결과 보기</button>
     </div>
   );
@@ -384,15 +397,19 @@ const SectionHeader = ({ title, subtitle, count, action }: { title: string; subt
 export const Dashboard = () => {
   // null = 로딩 중, [] = 데이터 없음, [...] = 실제 데이터
   const [dbActive, setDbActive] = React.useState<ActiveCardData[] | null>(null);
+  const [dbCompleted, setDbCompleted] = React.useState<CompletedCardData[] | null>(null);
 
   React.useEffect(() => {
     getActiveProjects()
       .then((rows) => setDbActive(rows.map(toCardData)))
       .catch(() => setDbActive([]));
+    getCompletedProjects()
+      .then((rows) => setDbCompleted(rows.map(toCompletedCardData)))
+      .catch(() => setDbCompleted([]));
   }, []);
 
   const active = dbActive ?? [];
-  const completed = COMPLETED_BRIEFS;
+  const completed = dbCompleted ?? [];
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ink-50)' }}>
@@ -439,7 +456,13 @@ export const Dashboard = () => {
               </div>
             }
           />
-          {completed.length > 0 ? (
+          {dbCompleted === null ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[1, 2].map((i) => (
+                <div key={i} style={{ height: 72, borderRadius: 'var(--radius)', background: 'linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)', backgroundSize: '800px 100%', animation: 'shimmer 1.4s ease infinite' }} />
+              ))}
+            </div>
+          ) : completed.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {completed.map((b) => <CompletedCard key={b.id} brief={b} />)}
             </div>

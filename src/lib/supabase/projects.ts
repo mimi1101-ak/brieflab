@@ -97,6 +97,17 @@ export async function getActiveProjects(): Promise<ProjectRow[]> {
   return (data ?? []) as unknown as ProjectRow[]
 }
 
+export async function getCompletedProjects(): Promise<ProjectRow[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('projects')
+    .select('*')
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as ProjectRow[]
+}
+
 export async function getProject(id: string): Promise<ProjectRow | null> {
   const supabase = createClient()
   const { data, error } = await supabase
