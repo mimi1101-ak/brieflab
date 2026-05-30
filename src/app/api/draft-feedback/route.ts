@@ -15,7 +15,11 @@ interface BriefSummary {
   deliverable: string;
 }
 
-function buildFeedbackSystemPrompt(persona: Persona | null, brief: BriefSummary): string {
+function buildFeedbackSystemPrompt(
+  persona: Persona | null,
+  brief: BriefSummary,
+  revision?: { previous_feedback: string },
+): string {
   const fieldGuide: Record<string, string> = {
     detail: '후킹 문구의 임팩트, 핵심 정보 배치, 색상 대비와 가시성, CTA 버튼 명확성, 스크롤 흐름',
     web: '정보 구조와 네비게이션 직관성, 브랜드 일관성, 반응형 고려, 핵심 메시지 전달',
@@ -28,7 +32,7 @@ function buildFeedbackSystemPrompt(persona: Persona | null, brief: BriefSummary)
     ? `말투: ${persona.voice.formality === 'high' ? '격식체' : '친근한 존댓말'}, 이모지: ${persona.voice.emoji_usage === 'none' ? '사용 안 함' : persona.voice.emoji_usage === 'frequent' ? '자주 사용' : '가끔 사용'}`
     : '일반적인 비즈니스 말투';
 
-  return `당신은 ${persona?.name ?? '클라이언트'}입니다.
+  const personaHeader = `당신은 ${persona?.name ?? '클라이언트'}입니다.
 ${persona ? `${persona.company}의 ${persona.title}로 일하고 있습니다.` : ''}
 ${persona?.personality_notes ?? ''}
 
@@ -37,7 +41,52 @@ ${persona?.personality_notes ?? ''}
 목적: ${brief.project_purpose}
 원하는 분위기/감성: ${brief.emotion}
 타겟 고객: ${brief.target}
-최종 산출물: ${brief.deliverable}
+최종 산출물: ${brief.deliverable}`;
+
+  const commonNotes = `[피드백 작성 주의사항]
+- 반드시 한국어로 작성
+- 마크다운 기호 절대 금지 (**, ##, ---, *, _ 등)
+- 각 섹션은 최소 2~4문장 이상으로 충분히 상세하게
+- 막연한 칭찬/비판 금지 — 반드시 시안의 구체적인 요소를 언급
+- ${voiceDesc}
+- ${persona?.voice?.quirks ?? ''}`;
+
+  // ── 재제출 비교 피드백 모드 ───────────────────────────────────────────────
+  if (revision) {
+    return `${personaHeader}
+
+[이전 피드백 내용]
+${revision.previous_feedback}
+
+디자이너가 위 피드백을 반영해서 수정한 시안을 제출했습니다.
+이전 시안과 비교하여 피드백해주세요.
+
+[재제출 피드백 형식]
+다음 순서로 작성:
+
+🌟 이전보다 좋아진 점
+(이전 피드백에서 지적한 부분이 개선됐는지 구체적으로 칭찬. 최소 2가지)
+
+✅ 브리프 반영도
+(의뢰 요구사항과의 일치도)
+
+🎨 디자인 디테일
+(색 조합, 타이포그래피, 레이아웃 등 현재 시안 기준으로 평가)
+
+🔧 추가로 수정하면 좋을 부분
+(있으면 구체적으로. 없으면 "더 이상 수정 없이 진행하셔도 됩니다"로)
+
+💭 총평 (2~3문장)
+
+📋 최종 판정: [컨펌] 또는 [수정 요청]
+
+${commonNotes}
+- 이전보다 나아진 점을 먼저, 충분히 칭찬할 것
+- 완성도가 높으면 [컨펌]으로 판정`;
+  }
+
+  // ── 최초 시안 피드백 모드 ─────────────────────────────────────────────────
+  return `${personaHeader}
 
 [시안 평가 기준]
 ${guide}
@@ -69,14 +118,8 @@ ${guide}
 - [컨펌]: 브리프 핵심 요구사항 80% 이상 반영, 디자인 방향성 일치
 - [수정 요청]: 핵심 요소 누락, 브리프 방향과 다름, 디자인 완성도 부족
 
-[피드백 작성 주의사항]
-- 반드시 한국어로 작성
-- 마크다운 기호 절대 금지 (**, ##, ---, *, _ 등)
-- 각 섹션은 최소 2~4문장 이상으로 충분히 상세하게
-- 막연한 칭찬/비판 금지 — 반드시 시안의 구체적인 요소를 언급
-- 브리프와 맞지 않는 시안은 [수정 요청]으로 명확하게 판정
-- ${voiceDesc}
-- ${persona?.voice?.quirks ?? ''}`;
+${commonNotes}
+- 브리프와 맞지 않는 시안은 [수정 요청]으로 명확하게 판정`;
 }
 
 export async function POST(request: NextRequest) {
@@ -89,18 +132,24 @@ export async function POST(request: NextRequest) {
     const anthropic = new Anthropic({ apiKey });
 
     const body = await request.json() as {
-      project_id:   string;
-      image_base64: string;
-      media_type:   'image/jpeg' | 'image/png' | 'image/webp';
-      description:  string;
-      persona_id:   string;
-      brief_summary: BriefSummary;
+      project_id:        string;
+      image_base64:      string;
+      media_type:        'image/jpeg' | 'image/png' | 'image/webp';
+      description:       string;
+      persona_id:        string;
+      brief_summary:     BriefSummary;
+      is_revision?:      boolean;
+      previous_feedback?: string;
     };
 
-    const { project_id, image_base64, media_type, description, persona_id, brief_summary } = body;
+    const { project_id, image_base64, media_type, description, persona_id, brief_summary, is_revision, previous_feedback } = body;
 
     const persona = persona_id ? (getPersonaById(persona_id) ?? null) : null;
-    const systemPrompt = buildFeedbackSystemPrompt(persona, brief_summary);
+    const systemPrompt = buildFeedbackSystemPrompt(
+      persona,
+      brief_summary,
+      is_revision && previous_feedback ? { previous_feedback } : undefined,
+    );
 
     const response = await anthropic.messages.create({
       model:      'claude-haiku-4-5-20251001',
@@ -146,8 +195,8 @@ export async function POST(request: NextRequest) {
       .insert({
         project_id,
         sender:  'assistant',
-        type:    'draft_feedback',
-        subject: '시안 피드백',
+        type:    is_revision ? 'revision_feedback' : 'draft_feedback',
+        subject: is_revision ? '재제출 시안 피드백' : '시안 피드백',
         body:    feedbackText,
         content: feedbackText,
       });

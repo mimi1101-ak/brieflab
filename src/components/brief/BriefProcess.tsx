@@ -807,34 +807,251 @@ const StepFeedback = ({
   onNext,
   readOnly = false,
   onReturnToActive,
+  initialFeedback = null,
+  projectId,
 }: {
   brief:             BriefData;
   onNext:            () => void;
   readOnly?:         boolean;
   onReturnToActive?: () => void;
-}) => (
-  <div>
-    {readOnly && onReturnToActive && <ReadOnlyBanner onReturn={onReturnToActive} />}
-    <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>피드백 수용</h2>
-    <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>클라이언트의 피드백을 검토하고 수정 방향을 결정해주세요.</p>
-    <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 18 }}>
-      <div style={{ fontSize: 12, color: 'var(--ink-500)', fontWeight: 600, marginBottom: 8 }}>{brief.persona.name} 님의 피드백</div>
-      <div style={{ fontSize: 14, color: 'var(--ink-800)', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{`전반적인 방향성은 좋습니다. 다만 메인 컬러가 다소 무겁게 느껴져요. 조금 더 밝고 친근한 톤으로 조정 부탁드릴 수 있을까요?\n\n그리고 메인 카피의 위계를 좀 더 명확히 잡아주시면 좋을 것 같습니다.`}</div>
+  initialFeedback?:  string | null;
+  projectId?:        string;
+}) => {
+  const [revisionFile,        setRevisionFile]        = React.useState<File | null>(null);
+  const [revisionPreviewUrl,  setRevisionPreviewUrl]  = React.useState<string | null>(null);
+  const [revisionDescription, setRevisionDescription] = React.useState('');
+  const [isRevisionLoading,   setIsRevisionLoading]   = React.useState(false);
+  const [revisionFeedback,    setRevisionFeedback]    = React.useState<string | null>(null);
+  const [isRevisionConfirmed, setIsRevisionConfirmed] = React.useState<boolean | null>(null);
+  const [revisionSizeError,   setRevisionSizeError]   = React.useState(false);
+  const [revisionApiError,    setRevisionApiError]    = React.useState(false);
+  const [isDragging,          setIsDragging]          = React.useState(false);
+  const revisionFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleRevisionFile = (file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      setRevisionSizeError(true);
+      setTimeout(() => setRevisionSizeError(false), 4000);
+      return;
+    }
+    setRevisionFile(file);
+    setRevisionPreviewUrl(URL.createObjectURL(file));
+    setRevisionFeedback(null);
+    setIsRevisionConfirmed(null);
+  };
+
+  const removeRevisionFile = () => {
+    setRevisionFile(null);
+    if (revisionPreviewUrl) URL.revokeObjectURL(revisionPreviewUrl);
+    setRevisionPreviewUrl(null);
+    setRevisionFeedback(null);
+    setIsRevisionConfirmed(null);
+    if (revisionFileInputRef.current) revisionFileInputRef.current.value = '';
+  };
+
+  const handleRevisionSubmit = async () => {
+    if (!revisionFile || isRevisionLoading) return;
+    setIsRevisionLoading(true);
+    setRevisionApiError(false);
+
+    try {
+      const base64    = await toBase64(revisionFile);
+      const mediaType = revisionFile.type as 'image/jpeg' | 'image/png' | 'image/webp';
+      const fieldMap: Record<string, string> = {
+        '상세페이지': 'detail', '웹사이트': 'web', '브랜딩': 'brand', '앱': 'app',
+      };
+
+      const res = await fetch('/api/draft-feedback', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id:        projectId ?? '',
+          image_base64:      base64,
+          media_type:        mediaType,
+          description:       revisionDescription,
+          persona_id:        brief.persona_id ?? '',
+          brief_summary: {
+            project_name:    brief.project.name,
+            project_purpose: brief.project.purpose,
+            field:           fieldMap[brief.fieldLabel] ?? 'web',
+            emotion:         brief.emotion,
+            target:          typeof brief.target === 'string' ? brief.target : JSON.stringify(brief.target),
+            deliverable:     brief.deliverable,
+          },
+          is_revision:       true,
+          previous_feedback: initialFeedback ?? '',
+        }),
+      });
+
+      const data = await res.json() as { feedback?: string; is_confirmed?: boolean; error?: string };
+
+      if (res.ok && data.feedback) {
+        setRevisionFeedback(data.feedback);
+        setIsRevisionConfirmed(data.is_confirmed ?? false);
+      } else {
+        setRevisionApiError(true);
+        setTimeout(() => setRevisionApiError(false), 5000);
+      }
+    } catch {
+      setRevisionApiError(true);
+      setTimeout(() => setRevisionApiError(false), 5000);
+    } finally {
+      setIsRevisionLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <style>{`@keyframes fadeSlideIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {readOnly && onReturnToActive && <ReadOnlyBanner onReturn={onReturnToActive} />}
+
+      {revisionSizeError && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          ⚠️ 10MB 이하 이미지만 업로드 가능합니다
+        </div>
+      )}
+      {revisionApiError && (
+        <div style={{ position: 'fixed', bottom: revisionSizeError ? 68 : 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          ⚠️ 피드백을 받지 못했어요. 잠시 후 다시 시도해주세요.
+        </div>
+      )}
+
+      <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.02em' }}>피드백 수용</h2>
+      <p style={{ fontSize: 14, color: 'var(--ink-600)', margin: '0 0 22px' }}>클라이언트의 피드백을 검토하고 수정 방향을 결정해주세요.</p>
+
+      {/* 이전 시안 피드백 카드 */}
+      {initialFeedback ? (
+        <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 18, fontSize: 14, color: 'var(--ink-800)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-500)', fontWeight: 600, marginBottom: 8 }}>{brief.persona.name} 님의 시안 피드백</div>
+          {initialFeedback}
+        </div>
+      ) : (
+        <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', padding: '16px 18px', marginBottom: 18 }}>
+          <div style={{ fontSize: 12, color: 'var(--ink-500)', fontWeight: 600, marginBottom: 8 }}>{brief.persona.name} 님의 피드백</div>
+          <div style={{ fontSize: 14, color: 'var(--ink-800)', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{`전반적인 방향성은 좋습니다. 다만 메인 컬러가 다소 무겁게 느껴져요. 조금 더 밝고 친근한 톤으로 조정 부탁드릴 수 있을까요?\n\n그리고 메인 카피의 위계를 좀 더 명확히 잡아주시면 좋을 것 같습니다.`}</div>
+        </div>
+      )}
+
+      {/* readOnly일 때 재제출 UI 숨김 + 조기 종료 */}
+      {readOnly ? null : (
+        <>
+          {/* 구분선 */}
+          <div style={{ borderTop: '1px solid var(--ink-100)', margin: '24px 0' }} />
+
+          {/* 재제출 섹션 */}
+          {!revisionFeedback ? (
+            <>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--ink-900)', marginBottom: 4 }}>수정한 시안을 다시 제출하시겠어요?</div>
+                <div style={{ fontSize: 13, color: 'var(--ink-500)' }}>수정 후 재제출하면 이전 시안과 비교해서 어떤 점이 좋아졌는지 알려드려요.</div>
+              </div>
+
+              <input
+                ref={revisionFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                style={{ display: 'none' }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleRevisionFile(f); }}
+              />
+
+              {revisionPreviewUrl ? (
+                <div style={{ position: 'relative', marginBottom: 14, borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1.5px solid var(--ink-200)', background: 'var(--ink-50)' }}>
+                  <img src={revisionPreviewUrl} alt="수정 시안 미리보기" style={{ width: '100%', maxHeight: 320, objectFit: 'contain', display: 'block' }} />
+                  <button type="button" onClick={removeRevisionFile} style={{ position: 'absolute', top: 10, right: 10, width: 28, height: 28, borderRadius: 999, background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }} aria-label="이미지 제거">×</button>
+                  <div style={{ padding: '8px 14px', fontSize: 12, color: 'var(--ink-500)' }}>{revisionFile?.name} · {revisionFile ? (revisionFile.size / 1024 / 1024).toFixed(1) : 0}MB</div>
+                </div>
+              ) : (
+                <div
+                  onClick={() => revisionFileInputRef.current?.click()}
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f && (f.type === 'image/png' || f.type === 'image/jpeg' || f.type === 'image/webp')) handleRevisionFile(f); }}
+                  style={{ border: `2px dashed ${isDragging ? 'var(--indigo-400)' : 'var(--ink-300)'}`, borderRadius: 'var(--radius-lg)', padding: '36px 24px', textAlign: 'center', background: isDragging ? 'var(--indigo-50)' : 'var(--ink-50)', marginBottom: 14, cursor: 'pointer', transition: 'all 150ms ease' }}
+                >
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--white)', margin: '0 auto 10px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-xs)', color: 'var(--indigo-600)' }}>
+                    <Icon.Upload style={{ width: 18, height: 18 }} />
+                  </div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 3 }}>수정한 시안 이미지 업로드</div>
+                  <div style={{ fontSize: 12, color: 'var(--ink-500)' }}>PNG, JPG, WEBP · 최대 10MB</div>
+                </div>
+              )}
+
+              <textarea
+                value={revisionDescription}
+                onChange={(e) => setRevisionDescription(e.target.value.slice(0, 300))}
+                placeholder="수정한 내용을 간단히 설명해주세요 (선택)"
+                style={{ width: '100%', minHeight: 70, padding: '11px 14px', border: '1.5px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', outline: 'none', marginBottom: 14, boxSizing: 'border-box', color: 'var(--ink-900)' }}
+              />
+
+              {isRevisionLoading && (
+                <div style={{ background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--radius)', padding: '12px 16px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid var(--indigo-200)', borderTopColor: 'var(--indigo-600)', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                  <div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--indigo-800)' }}>이전 시안과 비교 중입니다...</div>
+                    <div style={{ fontSize: 12, color: 'var(--indigo-600)', marginTop: 2 }}>20~30초 정도 걸릴 수 있어요</div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button type="button" onClick={onNext} style={{ ...sBtn, fontSize: 13, color: 'var(--ink-500)' }}>
+                  수정 없이 최종 납품하기 →
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRevisionSubmit}
+                  disabled={!revisionFile || isRevisionLoading}
+                  style={{ ...pBtn, opacity: (revisionFile && !isRevisionLoading) ? 1 : 0.45, cursor: (revisionFile && !isRevisionLoading) ? 'pointer' : 'not-allowed' }}
+                >
+                  📤 수정 시안 제출하기
+                </button>
+              </div>
+            </>
+          ) : (
+            /* 비교 피드백 카드 */
+            <div style={{ animation: 'fadeSlideIn 400ms ease' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: 'var(--indigo-50)', color: 'var(--indigo-700)', border: '1px solid var(--indigo-100)' }}>
+                  🔄 재제출 피드백
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700, background: isRevisionConfirmed ? '#DCFCE7' : '#FEF3C7', color: isRevisionConfirmed ? '#166534' : '#92400E', border: `1px solid ${isRevisionConfirmed ? '#BBF7D0' : '#FDE68A'}` }}>
+                  {isRevisionConfirmed ? '✅ 컨펌' : '🔄 수정 요청'}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--ink-50)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius-lg)', padding: '20px 22px', marginBottom: 18, fontSize: 14, color: 'var(--ink-800)', lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>
+                {revisionFeedback}
+              </div>
+
+              {revisionPreviewUrl && (
+                <div style={{ marginBottom: 18 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-400)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>제출한 수정 시안</div>
+                  <img src={revisionPreviewUrl} alt="수정 시안" style={{ maxHeight: 160, borderRadius: 'var(--radius)', border: '1px solid var(--ink-200)', objectFit: 'contain', display: 'block' }} />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button type="button" onClick={onNext} style={{ ...sBtn, fontSize: 13, color: 'var(--ink-500)' }}>
+                  수정 없이 최종 납품하기 →
+                </button>
+                {isRevisionConfirmed ? (
+                  <button type="button" onClick={onNext} style={pBtn}>
+                    최종 납품으로 <Icon.ChevronRight style={{ width: 14, height: 14 }} />
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => { setRevisionFeedback(null); setIsRevisionConfirmed(null); removeRevisionFile(); }} style={sBtn}>
+                    🔧 다시 수정하기
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-      {['컬러 톤 조정 (밝고 친근하게)', '메인 카피 위계 강화'].map((task, i) => (
-        <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--white)', border: '1px solid var(--ink-200)', borderRadius: 'var(--radius)', fontSize: 13.5, cursor: readOnly ? 'default' : 'pointer' }}>
-          <input type="checkbox" defaultChecked disabled={readOnly} style={{ accentColor: 'var(--indigo-600)' }} />{task}
-        </label>
-      ))}
-    </div>
-    {!readOnly && (
-      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-        <button type="button" onClick={onNext} style={pBtn}>수정 완료 <Icon.Check style={{ width: 14, height: 14 }} /></button>
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // ── StepDeliver ───────────────────────────────────────────────────────────────
 const StepDeliver = ({ brief, onFinish }: { brief: BriefData; onFinish: () => void }) => (
@@ -963,6 +1180,8 @@ export const BriefProcess = ({
               onNext={next}
               readOnly={readOnly}
               onReturnToActive={returnToActive}
+              initialFeedback={initialDraftFeedback}
+              projectId={projectId}
             />
           )}
           {viewingIdx === 4 && <StepDeliver brief={brief} onFinish={onFinish} />}
