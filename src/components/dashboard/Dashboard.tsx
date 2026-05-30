@@ -78,9 +78,7 @@ function getAvatarStyle(nickname: string): { bg: string; color: string } {
 }
 
 // ─── Header ─────────────────────────────────────────────────────────────────
-const Header = ({ empty, onToggle, nickname }: {
-  empty: boolean;
-  onToggle: () => void;
+const Header = ({ nickname }: {
   nickname?: string | null;
 }) => {
   const [showMenu, setShowMenu] = React.useState(false);
@@ -125,9 +123,6 @@ const Header = ({ empty, onToggle, nickname }: {
         ))}
       </nav>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={onToggle} style={{ background: empty ? 'var(--indigo-50)' : 'var(--ink-100)', border: empty ? '1px solid var(--indigo-200)' : '1px solid var(--ink-200)', color: empty ? 'var(--indigo-700)' : 'var(--ink-600)', fontSize: 12, fontWeight: 600, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-          {empty ? '📭 빈 상태' : '📊 데이터 있음'}
-        </button>
         <button style={{ background: 'transparent', border: 'none', color: 'var(--ink-600)', width: 36, height: 36, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
           <Icon.Bell style={{ width: 18, height: 18 }} />
         </button>
@@ -173,13 +168,11 @@ const Stat = ({ icon, label, value }: { icon: string; label: string; value: stri
   </div>
 );
 
-const GreetingPanel = ({ empty, nickname }: { empty: boolean; nickname?: string | null }) => {
-  const stats = empty
-    ? { total: '0개', avgScore: '-', streak: '0일', monthlyDone: 0 }
-    : { total: '14개', avgScore: '4.4', streak: '6일', monthlyDone: 2 };
+const GreetingPanel = ({ nickname }: { nickname?: string | null }) => {
+  const stats = { total: '14개', avgScore: '4.4', streak: '6일', monthlyDone: 2 };
   const pct = Math.min(100, (stats.monthlyDone / MONTHLY_GOAL) * 100);
   const hour = new Date().getHours();
-  const greeting = empty ? '환영해요' : hour < 12 ? '좋은 아침이에요' : hour < 18 ? '오늘도 화이팅이에요' : '늦은 시간까지 수고하세요';
+  const greeting = hour < 12 ? '좋은 아침이에요' : hour < 18 ? '오늘도 화이팅이에요' : '늦은 시간까지 수고하세요';
   const userName = nickname ?? '새로운 디자이너';
 
   return (
@@ -190,7 +183,8 @@ const GreetingPanel = ({ empty, nickname }: { empty: boolean; nickname?: string 
         <div>
           <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 6, fontWeight: 500 }}>{greeting}, {userName} 님 👋</div>
           <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, letterSpacing: '-0.03em', lineHeight: 1.3 }}>
-            {empty ? <>BriefLab에 오신 걸<br />환영해요!</> : <>오늘은 어떤 브리프에<br />도전해볼까요?</>}
+            <>오늘은 어떤 브리프에<br />도전해볼까요?</>
+
           </h1>
           <div style={{ display: 'flex', gap: 20, marginTop: 18, fontSize: 13, flexWrap: 'wrap' }}>
             <Stat icon="🎯" label="총 완료" value={stats.total} />
@@ -388,7 +382,6 @@ const SectionHeader = ({ title, subtitle, count, action }: { title: string; subt
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export const Dashboard = () => {
-  const [empty, setEmpty] = React.useState(false);
   // null = 로딩 중, [] = 데이터 없음, [...] = 실제 데이터
   const [dbActive, setDbActive] = React.useState<ActiveCardData[] | null>(null);
 
@@ -398,27 +391,27 @@ export const Dashboard = () => {
       .catch(() => setDbActive([]));
   }, []);
 
-  const active = empty ? [] : (dbActive ?? []);
-  const completed = empty ? [] : COMPLETED_BRIEFS;
+  const active = dbActive ?? [];
+  const completed = COMPLETED_BRIEFS;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--ink-50)' }}>
       <style>{`@keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }`}</style>
-      <Header empty={empty} onToggle={() => setEmpty((e) => !e)} />
+      <Header />
       <main style={{ flex: 1, maxWidth: 1240, width: '100%', margin: '0 auto', padding: '32px 36px 120px', display: 'flex', flexDirection: 'column', gap: 36 }}>
-        <GreetingPanel empty={empty} />
+        <GreetingPanel />
 
         <section>
           <SectionHeader
             title="진행 중인 작업" count={active.length}
-            subtitle={empty ? '첫 브리프를 시작해보세요. 단계별로 가이드해드려요.' : '현재 작업 중인 브리프예요. 단계별로 차근차근 완성해보세요.'}
-            action={!empty ? (
+            subtitle="현재 작업 중인 브리프예요. 단계별로 차근차근 완성해보세요."
+            action={
               <button style={{ background: 'transparent', border: 'none', color: 'var(--indigo-700)', fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', cursor: 'pointer' }}>
                 모두 보기 <Icon.ChevronRight style={{ width: 13, height: 13 }} />
               </button>
-            ) : undefined}
+            }
           />
-          {dbActive === null && !empty ? (
+          {dbActive === null ? (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(360px,1fr))', gap: 16 }}>
               {[1, 2].map((i) => (
                 <div key={i} style={{ height: 240, borderRadius: 'var(--radius-lg)', background: 'linear-gradient(90deg,#f0f0f0 25%,#e8e8e8 50%,#f0f0f0 75%)', backgroundSize: '800px 100%', animation: 'shimmer 1.4s ease infinite' }} />
@@ -434,8 +427,8 @@ export const Dashboard = () => {
         <section>
           <SectionHeader
             title="완료된 작업" count={completed.length}
-            subtitle={empty ? '완성한 브리프는 평가 점수와 함께 여기에 쌓여요.' : '지금까지 완성한 브리프 모음이에요. 클릭해서 결과물을 다시 볼 수 있어요.'}
-            action={!empty ? (
+            subtitle="지금까지 완성한 브리프 모음이에요. 클릭해서 결과물을 다시 볼 수 있어요."
+            action={
               <div style={{ display: 'flex', gap: 8 }}>
                 <select style={{ background: 'var(--white)', border: '1px solid var(--ink-200)', color: 'var(--ink-700)', fontSize: 13, fontWeight: 500, padding: '7px 10px', borderRadius: 8, cursor: 'pointer' }}>
                   <option>전체 분야</option><option>상세페이지</option><option>웹사이트</option><option>브랜딩</option><option>앱 제작</option>
@@ -444,7 +437,7 @@ export const Dashboard = () => {
                   <option>최근 순</option><option>평점 높은 순</option>
                 </select>
               </div>
-            ) : undefined}
+            }
           />
           {completed.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
