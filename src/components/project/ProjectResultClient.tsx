@@ -201,12 +201,13 @@ function FeedbackItem({ fb, isLast }: { fb: FeedbackMessage; isLast: boolean }) 
 interface Props { projectId: string }
 
 export default function ProjectResultClient({ projectId }: Props) {
-  const [loading,    setLoading]    = React.useState(true);
-  const [invalid,    setInvalid]    = React.useState<'notfound' | 'notcompleted' | null>(null);
-  const [project,    setProject]    = React.useState<ProjectRow | null>(null);
-  const [messages,   setMessages]   = React.useState<SentMessage[]>([]);
-  const [replies,    setReplies]    = React.useState<SentMessage[]>([]);
-  const [feedbacks,  setFeedbacks]  = React.useState<FeedbackMessage[]>([]);
+  const [loading,         setLoading]         = React.useState(true);
+  const [invalid,         setInvalid]         = React.useState<'notfound' | 'notcompleted' | null>(null);
+  const [project,         setProject]         = React.useState<ProjectRow | null>(null);
+  const [messages,        setMessages]        = React.useState<SentMessage[]>([]);
+  const [replies,         setReplies]         = React.useState<SentMessage[]>([]);
+  const [feedbacks,       setFeedbacks]       = React.useState<FeedbackMessage[]>([]);
+  const [showFullBrief,   setShowFullBrief]   = React.useState(false);
 
   React.useEffect(() => {
     Promise.all([
@@ -241,7 +242,7 @@ export default function ProjectResultClient({ projectId }: Props) {
   const snap      = prefs?.form_snapshot as Record<string, unknown> | undefined;
 
   const pooledPersona  = project.persona_id ? getPersonaById(project.persona_id) : undefined;
-  const persona        = pooledPersona ?? (content.persona as { name: string; title: string; company: string; email: string } | undefined);
+  const persona        = pooledPersona ?? (content.persona as { name: string; title: string; company: string; email: string; phone?: string } | undefined);
 
   const pooledProject  = project.project_template_id ? getProjectById(project.project_template_id) : undefined;
   const projectInfo    = pooledProject
@@ -264,8 +265,9 @@ export default function ProjectResultClient({ projectId }: Props) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink-50)', display: 'flex', flexDirection: 'column' }}>
       <style>{`
-        @keyframes shimmer { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
-        @keyframes fadeUp  { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes shimmer  { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+        @keyframes fadeUp   { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes briefOpen{ from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
       {/* ── 헤더 ──────────────────────────────────────────────────────────── */}
@@ -368,6 +370,169 @@ export default function ProjectResultClient({ projectId }: Props) {
               ))}
             </div>
           )}
+          {/* ── 상세 브리프 토글 ── */}
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              onClick={() => setShowFullBrief(v => !v)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: showFullBrief ? 'var(--indigo-50)' : 'var(--white)',
+                border: `1px solid ${showFullBrief ? 'var(--indigo-200)' : 'var(--ink-200)'}`,
+                borderRadius: 'var(--radius)', padding: '10px 16px',
+                fontSize: 13, fontWeight: 600,
+                color: showFullBrief ? 'var(--indigo-700)' : 'var(--ink-600)',
+                cursor: 'pointer', transition: 'all 160ms ease',
+              }}
+            >
+              <Icon.Doc style={{ width: 14, height: 14 }} />
+              {showFullBrief ? '상세 브리프 접기' : '상세 브리프 보기'}
+              <svg
+                viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"
+                style={{ width: 14, height: 14, transition: 'transform 200ms ease', transform: showFullBrief ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              >
+                <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+
+            {showFullBrief && (() => {
+              // ── 상세 브리프에 사용할 데이터 파싱 ───────────────────────────
+              const target  = (content.target ?? {}) as { age?: string; gender?: string; lifestyle?: string };
+              const dates   = (content.dates  ?? {}) as { kickoff?: string; mid?: string; final?: string };
+              const emotion      = String(content.emotion     ?? '');
+              const deliverable  = String(content.deliverable ?? '');
+              const styleLabels  = String(content.styleLabels ?? '');
+              const refUrl       = String(snap?.refUrl ?? '없음');
+              const avoid        = String(snap?.avoid  ?? '특별한 제한 없음');
+              const isWebOrDetail = project.field === 'web' || project.field === 'detail';
+
+              // ── 인라인 서브컴포넌트 ─────────────────────────────────────────
+              const BSec = ({ icon, title, rows }: {
+                icon: React.ReactNode;
+                title: string;
+                rows: [string, string][];
+              }) => (
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--indigo-50)', color: 'var(--indigo-700)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {icon}
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink-900)', letterSpacing: '-0.01em' }}>{title}</span>
+                  </div>
+                  <div style={{ paddingLeft: 34 }}>
+                    {rows.filter(([, v]) => v && v !== '' && v !== 'undefined' && v !== 'null').map(([label, value]) => (
+                      <div key={label} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12, padding: '9px 0', borderBottom: '1px solid var(--ink-100)', fontSize: 13 }}>
+                        <span style={{ color: 'var(--ink-500)', fontWeight: 500, lineHeight: 1.5 }}>{label}</span>
+                        <span style={{ color: 'var(--ink-900)', lineHeight: 1.55 }}>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+
+              return (
+                <div style={{ marginTop: 10, background: 'var(--white)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--radius-lg)', padding: '24px 22px', animation: 'briefOpen 220ms ease' }}>
+                  {/* 문서 헤더 */}
+                  <div style={{ paddingBottom: 16, borderBottom: '2px solid var(--ink-900)', marginBottom: 22 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, color: 'var(--ink-400)', textTransform: 'uppercase', marginBottom: 6 }}>CLIENT BRIEF</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--ink-900)', letterSpacing: '-0.025em' }}>
+                      {projectInfo?.name ?? project.title}
+                    </div>
+                    {persona && (
+                      <div style={{ fontSize: 12, color: 'var(--ink-500)', marginTop: 6 }}>
+                        발신: {persona.company} · {persona.name} {persona.title}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 1. 담당자 정보 */}
+                  {persona && (
+                    <BSec
+                      icon={<Icon.Building style={{ width: 13, height: 13 }} />}
+                      title="담당자 정보"
+                      rows={[
+                        ['이름 / 직책', `${persona.name} / ${persona.title}`],
+                        ['기관·기업명', persona.company],
+                        ['이메일',       persona.email],
+                        ['전화번호',     persona.phone ?? ''],
+                      ]}
+                    />
+                  )}
+
+                  {/* 2. 프로젝트 주요 내용 */}
+                  {projectInfo && (
+                    <BSec
+                      icon={<Icon.Doc style={{ width: 13, height: 13 }} />}
+                      title="프로젝트 주요 내용"
+                      rows={[
+                        ['프로젝트명', projectInfo.name],
+                        ['배경',       projectInfo.purpose],
+                        ['요구 내용',  styleLabels && emotion ? `${fieldLabel} 작업물이 필요합니다. 톤앤매너는 ${styleLabels} 방향이며, 타겟에게 ${emotion}는 인상을 전달하고자 합니다.` : `${fieldLabel} 작업물이 필요합니다.`],
+                        ['프로젝트 성격', '신규 제작'],
+                      ]}
+                    />
+                  )}
+
+                  {/* 3. 타겟 정보 */}
+                  <BSec
+                    icon={<Icon.Tag style={{ width: 13, height: 13 }} />}
+                    title="타겟 정보"
+                    rows={[
+                      ['연령대',      target.age      ?? ''],
+                      ['성별',        target.gender    ?? ''],
+                      ['라이프스타일', target.lifestyle ?? ''],
+                      ['감정 톤',     emotion],
+                    ]}
+                  />
+
+                  {/* 4. 레퍼런스 및 방향성 */}
+                  <BSec
+                    icon={<Icon.Palette style={{ width: 13, height: 13 }} />}
+                    title="레퍼런스 및 방향성"
+                    rows={[
+                      ['선호 스타일',    styleLabels],
+                      ['피해야 할 스타일', avoid],
+                      ['참고 사이트',    refUrl],
+                    ]}
+                  />
+
+                  {/* 5. 산출물 범위 */}
+                  <BSec
+                    icon={<Icon.Doc style={{ width: 13, height: 13 }} />}
+                    title="산출물 범위"
+                    rows={[
+                      ['납품 형식', deliverable],
+                      ['반응형',   isWebOrDetail ? '모바일 대응 필수' : '해당 없음'],
+                    ]}
+                  />
+
+                  {/* 6. 일정 및 커뮤니케이션 */}
+                  <BSec
+                    icon={<Icon.Calendar style={{ width: 13, height: 13 }} />}
+                    title="일정 및 커뮤니케이션"
+                    rows={[
+                      ['킥오프 미팅',  dates.kickoff    ?? ''],
+                      ['중간 시안',    dates.mid        ?? ''],
+                      ['최종 납기',    dates.final      ?? ''],
+                      ['제작 기간',    project.duration],
+                      ['소통 방식',    '이메일 (회신은 24시간 이내)'],
+                    ]}
+                  />
+
+                  {/* 7. 기타 정보 */}
+                  <BSec
+                    icon={<Icon.Money style={{ width: 13, height: 13 }} />}
+                    title="기타 정보"
+                    rows={[
+                      ['예산 범위', project.budget ?? '협의'],
+                      ['난이도(연습)', diffLabel],
+                      ['기타 요청',  '시안은 2~3안 제안 부탁드리며, 최종 선정 후 1~2회 수정을 거쳐 마감하고자 합니다.'],
+                    ]}
+                  />
+                </div>
+              );
+            })()}
+          </div>
         </section>
 
         {/* 구분선 */}
