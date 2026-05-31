@@ -123,6 +123,15 @@ export async function getProject(id: string): Promise<ProjectRow | null> {
  * 단계 전진 시 projects.current_step / step_index 동기화.
  * 에러 시 false 반환 (throw 하지 않음).
  */
+export async function completeProject(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('projects')
+    .update({ status: 'completed' })
+    .eq('id', id)
+  if (error) throw new Error(error.message)
+}
+
 export async function updateProjectStep(
   projectId: string,
   dbStep: string,

@@ -3,6 +3,7 @@ import React from 'react';
 import * as Icon from '@/components/ui/Icon';
 import { BriefData, SentMessage } from './types';
 import { insertUserMessage } from '@/lib/messages';
+import { completeProject } from '@/lib/supabase/projects';
 
 // ── 내부 타입 ────────────────────────────────────────────────────────────────
 type ReplyEntry = { subject: string; body: string; received_at: string };
@@ -1054,29 +1055,76 @@ const StepFeedback = ({
 };
 
 // ── StepDeliver ───────────────────────────────────────────────────────────────
-const StepDeliver = ({ brief, onFinish }: { brief: BriefData; onFinish: () => void }) => (
-  <div style={{ textAlign: 'center', padding: '20px 0' }}>
-    <div style={{ width: 72, height: 72, borderRadius: 999, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', color: '#fff', margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-indigo)' }}>
-      <Icon.Sparkle style={{ width: 32, height: 32 }} />
-    </div>
-    <h2 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>프로젝트 완료!</h2>
-    <p style={{ fontSize: 14.5, color: 'var(--ink-600)', margin: '0 auto 28px', maxWidth: 420, lineHeight: 1.6 }}>
-      {brief.project.name} 프로젝트를 성공적으로 마무리했어요.<br />AI가 작업 과정을 분석해 피드백을 준비하고 있습니다.
-    </p>
-    <div style={{ background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', maxWidth: 480, margin: '0 auto 24px', textAlign: 'left' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--indigo-700)', marginBottom: 10, letterSpacing: 0.4, textTransform: 'uppercase' }}>이번 연습 요약</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        {[['분야', brief.fieldLabel], ['난이도', brief.difficulty], ['제작 기간', brief.durationLabel], ['완료 단계', '5 / 5']].map(([k, v]) => (
-          <div key={k}><div style={{ fontSize: 11, color: 'var(--ink-500)' }}>{k}</div><div style={{ fontSize: 14, fontWeight: 600 }}>{v}</div></div>
-        ))}
+const StepDeliver = ({
+  brief,
+  onFinish,
+  projectId,
+}: {
+  brief: BriefData;
+  onFinish: () => void;
+  projectId?: string;
+}) => {
+  const [completing, setCompleting] = React.useState(false);
+  const [completeError, setCompleteError] = React.useState(false);
+
+  const handleComplete = async () => {
+    if (completing) return;
+    setCompleting(true);
+    setCompleteError(false);
+    try {
+      if (projectId) await completeProject(projectId);
+      onFinish();
+    } catch {
+      setCompleteError(true);
+      setCompleting(false);
+      setTimeout(() => setCompleteError(false), 5000);
+    }
+  };
+
+  return (
+    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      {completeError && (
+        <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', background: '#1E1E2E', color: '#fff', fontSize: 13, fontWeight: 500, padding: '10px 18px', borderRadius: 999, zIndex: 9999, whiteSpace: 'nowrap', animation: 'toastIn 200ms ease', boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
+          ⚠️ 완료 처리에 실패했어요. 다시 시도해주세요.
+        </div>
+      )}
+      <div style={{ width: 72, height: 72, borderRadius: 999, background: 'linear-gradient(135deg,var(--indigo-500),var(--indigo-700))', color: '#fff', margin: '0 auto 18px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'var(--shadow-indigo)' }}>
+        <Icon.Sparkle style={{ width: 32, height: 32 }} />
+      </div>
+      <h2 style={{ fontSize: 26, fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>프로젝트 완료!</h2>
+      <p style={{ fontSize: 14.5, color: 'var(--ink-600)', margin: '0 auto 28px', maxWidth: 420, lineHeight: 1.6 }}>
+        {brief.project.name} 프로젝트를 성공적으로 마무리했어요.<br />완료하기를 눌러 대시보드로 돌아가세요.
+      </p>
+      <div style={{ background: 'var(--indigo-50)', border: '1px solid var(--indigo-100)', borderRadius: 'var(--radius-lg)', padding: '20px 24px', maxWidth: 480, margin: '0 auto 24px', textAlign: 'left' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--indigo-700)', marginBottom: 10, letterSpacing: 0.4, textTransform: 'uppercase' }}>이번 연습 요약</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {[['분야', brief.fieldLabel], ['난이도', brief.difficulty], ['제작 기간', brief.durationLabel], ['완료 단계', '5 / 5']].map(([k, v]) => (
+            <div key={k}><div style={{ fontSize: 11, color: 'var(--ink-500)' }}>{k}</div><div style={{ fontSize: 14, fontWeight: 600 }}>{v}</div></div>
+          ))}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+        <button type="button" onClick={onFinish} style={sBtn} disabled={completing}>처음으로</button>
+        <button
+          type="button"
+          onClick={handleComplete}
+          disabled={completing}
+          style={{ ...pBtn, opacity: completing ? 0.65 : 1, cursor: completing ? 'not-allowed' : 'pointer', minWidth: 120 }}
+        >
+          {completing ? (
+            <>
+              <div style={{ width: 13, height: 13, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.4)', borderTopColor: '#fff', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+              처리 중...
+            </>
+          ) : (
+            <><Icon.Check style={{ width: 14, height: 14 }} /> 완료하기</>
+          )}
+        </button>
       </div>
     </div>
-    <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-      <button type="button" onClick={onFinish} style={sBtn}>처음으로</button>
-      <button type="button" style={pBtn}><Icon.Sparkle style={{ width: 14, height: 14 }} /> AI 피드백 받기</button>
-    </div>
-  </div>
-);
+  );
+};
 
 // ── BriefProcess (메인) ────────────────────────────────────────────────────────
 export const BriefProcess = ({
@@ -1184,7 +1232,7 @@ export const BriefProcess = ({
               projectId={projectId}
             />
           )}
-          {viewingIdx === 4 && <StepDeliver brief={brief} onFinish={onFinish} />}
+          {viewingIdx === 4 && <StepDeliver brief={brief} onFinish={onFinish} projectId={projectId} />}
         </div>
       </main>
     </div>
