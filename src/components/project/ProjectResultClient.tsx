@@ -254,9 +254,8 @@ export default function ProjectResultClient({ projectId }: Props) {
   const diffLabel    = DIFF_LABEL[project.difficulty] ?? project.difficulty;
   const completedAt  = fmtDate(project.updated_at);
 
-  const briefEmailBody = persona && projectInfo
-    ? `안녕하세요, ${persona.company}의 ${persona.name}입니다.\n${projectInfo.purpose}\n\n프로젝트명: ${projectInfo.name}\n제작 기간: ${project.duration}\n예산: ${project.budget ?? '협의'}\n\n자세한 내용은 첨부 브리프를 참고 부탁드립니다.`
-    : '브리프 내용을 불러올 수 없습니다.';
+  // brief_content.emailBody: insertDraftProject() 시점에 buildEmailBody()로 생성·저장된 전체 메일 전문
+  const briefEmailBody = String(content.emailBody ?? '') || '브리프 내용을 불러올 수 없습니다.';
 
   // replies를 id 기반 맵으로 구성 (messages와 인덱스 1:1 대응)
   const replyMap: Record<number, SentMessage> = {};
