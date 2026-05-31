@@ -337,7 +337,9 @@ const CompletedCard = ({ brief }: { brief: CompletedCardData }) => {
         <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--ink-900)', letterSpacing: '-0.01em' }}>{brief.title}</div>
       </div>
       {brief.score !== null && <ScoreStars score={brief.score} />}
-      <button style={{ background: 'transparent', border: '1px solid var(--ink-200)', color: 'var(--ink-700)', fontSize: 12.5, fontWeight: 600, padding: '7px 12px', borderRadius: 8, whiteSpace: 'nowrap', cursor: 'pointer' }}>결과 보기</button>
+      <Link href={`/project/${brief.id}/result`} style={{ textDecoration: 'none', flexShrink: 0 }}>
+        <button style={{ background: 'transparent', border: '1px solid var(--ink-200)', color: 'var(--ink-700)', fontSize: 12.5, fontWeight: 600, padding: '7px 12px', borderRadius: 8, whiteSpace: 'nowrap', cursor: 'pointer' }}>결과 보기</button>
+      </Link>
     </div>
   );
 };
