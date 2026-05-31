@@ -7,7 +7,12 @@ export type ProjectStatus = 'draft' | 'active' | 'completed' | 'rejected'
 export type CurrentStep = 'receive' | 'qna' | 'draft_submit' | 'feedback' | 'deliver'
 export type StepIndex = 0 | 1 | 2 | 3 | 4
 export type MessageSender = 'client' | 'user' | 'assistant'
-export type MessageType = 'brief_delivery' | 'qna_question' | 'qna_answer'
+export type MessageType =
+  | 'brief_delivery'
+  | 'qna_question'
+  | 'qna_answer'
+  | 'draft_feedback'
+  | 'revision_feedback'
 
 // Internal shape of style_preferences jsonb — finalized in A-2
 export type StylePreferences = Record<string, unknown>

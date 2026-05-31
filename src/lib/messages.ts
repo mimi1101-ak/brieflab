@@ -1,6 +1,16 @@
 import { createClient } from '@/lib/supabase/client';
 import type { SentMessage } from '@/components/brief/types';
 
+/** 피드백 메시지 1건 — draft_feedback 또는 revision_feedback */
+export interface FeedbackMessage {
+  id: string;
+  project_id: string;
+  type: 'draft_feedback' | 'revision_feedback';
+  subject: string;
+  body: string;
+  created_at: string;
+}
+
 /**
  * 특정 프로젝트의 사용자 QnA 메시지를 가져온다.
  * sender='user', type='qna_question' 필터 적용.
@@ -63,6 +73,37 @@ export async function fetchProjectDraftFeedback(projectId: string): Promise<stri
 
   if (error || !data) return null;
   return (data.body || data.content) ?? null;
+}
+
+/**
+ * 한 프로젝트의 시안 피드백을 모두 가져온다.
+ * draft_feedback(최초 시안) + revision_feedback(재제출 시안) 두 타입을 포함,
+ * created_at ASC 정렬 → 시안 제출 피드백 → 재제출 피드백 순서가 유지됨.
+ * 에러 시 [] 반환 (throw 하지 않음).
+ */
+export async function fetchProjectFeedbacks(projectId: string): Promise<FeedbackMessage[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id, project_id, type, subject, body, content, created_at')
+    .eq('project_id', projectId)
+    .eq('sender', 'assistant')
+    .in('type', ['draft_feedback', 'revision_feedback'])
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('[BriefLab] feedbacks fetch 실패:', error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => ({
+    id:         row.id as string,
+    project_id: row.project_id as string,
+    type:       row.type as 'draft_feedback' | 'revision_feedback',
+    subject:    row.subject as string,
+    body:       ((row.body || row.content) ?? '') as string,
+    created_at: row.created_at as string,
+  }));
 }
 
 /**
